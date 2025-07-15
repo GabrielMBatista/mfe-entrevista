@@ -12,7 +12,8 @@
     "lucide-react": "^0.511.0",
     "next": "^14.2.29",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "speech-to-text": "^3.0.2"
   },
   "devDependencies": {
     "@gabrielmbatista/ui-library-stencil": "0.0.27",

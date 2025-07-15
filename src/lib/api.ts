@@ -24,21 +24,27 @@ async function fetchInvitationById(invitationId: string): Promise<Invitation> {
   }
 }
 
-async function createSession(invitationId: string): Promise<InterviewSession> {
+async function createSession(
+  invitationId: string,
+  startTime: string
+): Promise<InterviewSession> {
   try {
     const response = await fetch(`${API_BASE_URL}/sessions/start`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ invitationId }),
+      body: JSON.stringify({ invitationId, startTime }),
     });
     if (!response.ok) {
+      if (response.status === 409) {
+        throw new Error("Já existe uma sessão para este convite.");
+      }
       throw new Error("Erro ao criar sessão.");
     }
     return await response.json();
   } catch (error) {
-    console.error(error);
+    console.error("Erro em createSession:", error);
     throw error;
   }
 }
@@ -46,22 +52,27 @@ async function createSession(invitationId: string): Promise<InterviewSession> {
 async function saveAnswer(
   sessionId: string,
   questionId: string,
-  audioUrl: string
+  transcription: string // Salvar a transcrição do áudio
 ): Promise<Answer> {
   try {
-    const response = await fetch(`${API_BASE_URL}/answers`, {
+    const response = await fetch(`/api/sessions/${sessionId}/answer`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ sessionId, questionId, audioUrl }),
+      body: JSON.stringify({
+        questionId,
+        transcription, // Enviar a transcrição como resposta
+      }),
     });
+
     if (!response.ok) {
       throw new Error("Erro ao salvar resposta.");
     }
+
     return await response.json();
   } catch (error) {
-    console.error(error);
+    console.error("Erro na API saveAnswer:", error);
     throw error;
   }
 }
@@ -127,6 +138,47 @@ async function getQuestionsByCategory(categoryId: string): Promise<Question[]> {
   }
 }
 
+async function fetchAllQuestions(): Promise<{ id: string; content: string }[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/questions/all`);
+    if (!response.ok) {
+      throw new Error("Erro ao buscar todas as perguntas.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em fetchAllQuestions:", error);
+    throw error;
+  }
+}
+
+async function sendInvitation(
+  candidateName: string,
+  candidateEmail: string,
+  categoryId: string
+): Promise<{
+  id: string;
+  candidateName: string;
+  candidateEmail: string;
+  categoryId: string;
+}> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/invitations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ candidateName, candidateEmail, categoryId }),
+    });
+    if (!response.ok) {
+      throw new Error("Erro ao enviar convite.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em sendInvitation:", error);
+    throw error;
+  }
+}
+
 export {
   fetchInvitationById,
   createSession,
@@ -135,4 +187,6 @@ export {
   getInterviewTypes,
   getCategoriesByInterviewType,
   getQuestionsByCategory,
+  fetchAllQuestions,
+  sendInvitation,
 };

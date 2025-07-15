@@ -16,7 +16,7 @@ const nextConfig = {
         filename: 'static/chunks/remoteEntry.js',
         exposes: {
           './App': './src/pages/_app.tsx',
-          './Invite': './src/pages/invite/[id].tsx',
+          './Invite': './src/pages/invite/index.tsx',
           './Config': './src/pages/config/index.tsx',
           './Interview': './src/pages/interview/[id].tsx',
         },
