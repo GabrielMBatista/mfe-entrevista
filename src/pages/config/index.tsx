@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 
-const ConfigClient = dynamic(() => import("@/components/Config"), {
+const ConfigClient = dynamic(() => import("@/components/ConfigPage"), {
   ssr: false,
 });
 

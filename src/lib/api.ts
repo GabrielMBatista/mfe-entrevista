@@ -5,6 +5,7 @@ import {
   Question,
   InterviewType,
   Category,
+  SessionSummary,
 } from "@/types/types";
 
 // Funções
@@ -49,22 +50,48 @@ async function createSession(
   }
 }
 
+async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "recording.webm");
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Erro ao transcrever áudio.");
+    }
+
+    const data = await response.json();
+    return data.transcription;
+  } catch (error) {
+    console.error("Erro na transcrição do áudio:", error);
+    throw error;
+  }
+}
+
 async function saveAnswer(
   sessionId: string,
   questionId: string,
-  transcription: string // Salvar a transcrição do áudio
+  transcript: string
 ): Promise<Answer> {
   try {
-    const response = await fetch(`/api/sessions/${sessionId}/answer`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        questionId,
-        transcription, // Enviar a transcrição como resposta
-      }),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/answer`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          questionId,
+          transcript,
+        }),
+      }
+    );
 
     if (!response.ok) {
       throw new Error("Erro ao salvar resposta.");
@@ -179,14 +206,222 @@ async function sendInvitation(
   }
 }
 
+async function fetchSessionSummary(sessionId: string): Promise<SessionSummary> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/summary`
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao buscar resumo da sessão.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em fetchSessionSummary:", error);
+    throw error;
+  }
+}
+
+async function updateTranscript(
+  sessionId: string,
+  answerId: string,
+  transcript: string
+): Promise<Answer> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/answers/${answerId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ transcript }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Erro ao atualizar transcrição.");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em updateTranscript:", error);
+    throw error;
+  }
+}
+
+async function finalizeSession(sessionId: string): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/evaluate`,
+      {
+        method: "POST",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Erro ao finalizar sessão.");
+    }
+  } catch (error) {
+    console.error("Erro em finalizeSession:", error);
+    throw error;
+  }
+}
+
+async function completeSession(sessionId: string): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/complete`,
+      {
+        method: "POST",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Erro ao encerrar sessão.");
+    }
+  } catch (error) {
+    console.error("Erro em completeSession:", error);
+    throw error;
+  }
+}
+
+async function fetchCompletedSessions(
+  startDate?: string,
+  endDate?: string,
+  columns?: string[]
+): Promise<any[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (startDate) queryParams.append("startDate", startDate);
+    if (endDate) queryParams.append("endDate", endDate);
+    if (columns) queryParams.append("columns", columns.join(","));
+
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/completed?${queryParams.toString()}`
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao buscar sessões concluídas.");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em fetchCompletedSessions:", error);
+    throw error;
+  }
+}
+
+async function createCategory(
+  interviewTypeId: string,
+  name: string
+): Promise<Category> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/categories`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ interviewTypeId, name }),
+    });
+    if (!response.ok) {
+      throw new Error("Erro ao criar categoria.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em createCategory:", error);
+    throw error;
+  }
+}
+
+async function createQuestion(data: {
+  text: string;
+  technologies: string;
+  order: number;
+  categoryId: string;
+}): Promise<Question> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/questions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error("Erro ao criar pergunta.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em createQuestion:", error);
+    throw error;
+  }
+}
+
+async function updateQuestion(data: {
+  id: string;
+  content?: string;
+  technologies?: string;
+  order?: number;
+}): Promise<Question> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/questions/${data.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error("Erro ao atualizar pergunta.");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro em updateQuestion:", error);
+    throw error;
+  }
+}
+
+async function addQuestionToCategory(
+  categoryId: string,
+  questionId: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/categories/${categoryId}/questions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ questionId }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao adicionar pergunta à categoria.");
+    }
+  } catch (error) {
+    console.error("Erro em addQuestionToCategory:", error);
+    throw error;
+  }
+}
+
 export {
   fetchInvitationById,
   createSession,
   saveAnswer,
+  transcribeAudio,
   getInvitation,
   getInterviewTypes,
   getCategoriesByInterviewType,
   getQuestionsByCategory,
   fetchAllQuestions,
   sendInvitation,
+  fetchSessionSummary,
+  updateTranscript,
+  finalizeSession,
+  completeSession,
+  fetchCompletedSessions,
+  createCategory,
+  createQuestion,
+  updateQuestion,
+  addQuestionToCategory,
 };
