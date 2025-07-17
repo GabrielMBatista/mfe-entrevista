@@ -12,7 +12,7 @@ export default function Home() {
         Este é um sistema para gerenciar e avaliar sessões de entrevistas.
       </p>
       <div className="mt-8 flex justify-center">
-        <Link href="/components/Dashboard">
+        <Link href="/dashboard">
           <span className="px-6 py-3 bg-blue-500 text-white rounded text-lg">
             Acessar Dashboard
           </span>
