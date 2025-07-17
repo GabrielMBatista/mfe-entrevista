@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchCompletedSessions } from "@/lib/api";
+import { fetchCompletedSessions, reEvaluateSession } from "@/lib/api";
 
 export default function Dashboard() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -77,6 +77,19 @@ export default function Dashboard() {
                     >
                       {expandedRow === session.id ? "Fechar" : "Expandir"}
                     </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await reEvaluateSession(session.id);
+                          alert("Avaliação reenviada com sucesso!");
+                        } catch {
+                          alert("Erro ao reenviar avaliação.");
+                        }
+                      }}
+                      className="ml-2 px-4 py-2 bg-green-500 text-white rounded"
+                    >
+                      Reenviar Avaliação
+                    </button>
                   </td>
                 </tr>
                 {expandedRow === session.id && (
@@ -84,10 +97,65 @@ export default function Dashboard() {
                     <td colSpan={7} className="border border-gray-300 p-4">
                       <h3 className="text-lg font-semibold">Resumo</h3>
                       <p>{session.summary}</p>
-                      <h3 className="text-lg font-semibold mt-4">
-                        Relatório Completo
-                      </h3>
-                      <p>{session.fullReport}</p>
+                      {session.fullReport && (
+                        <div className="mt-4">
+                          <h3 className="text-lg font-semibold">
+                            Relatório Completo
+                          </h3>
+                          <div className="mt-2">
+                            <p>
+                              <span className="font-semibold">
+                                Nível de Conhecimento:
+                              </span>{" "}
+                              {
+                                JSON.parse(session.fullReport)
+                                  .nivelDeConhecimento
+                              }
+                            </p>
+                            <p>
+                              <span className="font-semibold">
+                                Comunicação:
+                              </span>{" "}
+                              {JSON.parse(session.fullReport).comunicacao}
+                            </p>
+                            <div className="mt-2">
+                              <h4 className="font-semibold">Pontos Fortes:</h4>
+                              <ul className="list-disc ml-5">
+                                {JSON.parse(
+                                  session.fullReport
+                                ).pontosFortes.map(
+                                  (ponto: string, index: number) => (
+                                    <li key={index}>{ponto}</li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                            <div className="mt-2">
+                              <h4 className="font-semibold">
+                                Pontos de Melhoria:
+                              </h4>
+                              <ul className="list-disc ml-5">
+                                {JSON.parse(
+                                  session.fullReport
+                                ).pontosDeMelhoria.map(
+                                  (ponto: string, index: number) => (
+                                    <li key={index}>{ponto}</li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                            <div className="mt-2">
+                              <h4 className="font-semibold">
+                                Potencial de Crescimento:
+                              </h4>
+                              {
+                                JSON.parse(session.fullReport)
+                                  .potencialDeCrescimento
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <h3 className="text-lg font-semibold mt-4">
                         Perguntas e Respostas
                       </h3>

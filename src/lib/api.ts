@@ -75,21 +75,21 @@ async function transcribeAudio(audioBlob: Blob): Promise<string> {
 async function saveAnswer(
   sessionId: string,
   questionId: string,
-  transcript: string
+  transcript: string,
+  audioBlob: string
 ): Promise<Answer> {
   try {
+    const formData = new FormData();
+    formData.append("sessionId", sessionId);
+    formData.append("questionId", questionId);
+    formData.append("transcript", transcript);
+    formData.append("audioBlob", audioBlob);
+
     const response = await fetch(
       `${API_BASE_URL}/sessions/${sessionId}/answer`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId,
-          questionId,
-          transcript,
-        }),
+        body: formData,
       }
     );
 
@@ -404,6 +404,23 @@ async function addQuestionToCategory(
   }
 }
 
+async function reEvaluateSession(sessionId: string): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/sessions/${sessionId}/re-evaluate`,
+      {
+        method: "POST",
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao reenviar avaliação.");
+    }
+  } catch (error) {
+    console.error("Erro em reEvaluateSession:", error);
+    throw error;
+  }
+}
+
 export {
   fetchInvitationById,
   createSession,
@@ -424,4 +441,5 @@ export {
   createQuestion,
   updateQuestion,
   addQuestionToCategory,
+  reEvaluateSession,
 };

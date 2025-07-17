@@ -4,14 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import {
   fetchInvitationById,
   createSession,
-  saveAnswer,
   transcribeAudio,
   fetchSessionSummary,
   updateTranscript,
   finalizeSession,
+  saveAnswer,
 } from "@/lib/api";
 import { useRouter } from "next/router";
-import { Question, SessionSummary } from '@/types/types';
+import { Question, SessionSummary } from "@/types/types";
+import { FaMicrophone } from "react-icons/fa"; // Certifique-se de instalar react-icons
 
 export default function Interview() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function Interview() {
   const [error, setError] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isMicrophoneActive, setIsMicrophoneActive] = useState(false);
+  const [audioLevel, setAudioLevel] = useState<number>(0); // Estado para capturar o nível do áudio
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(
     null
   );
@@ -68,6 +71,25 @@ export default function Interview() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setIsMicrophoneActive(true); // Ativar indicador de microfone
+
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const updateAudioLevel = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const level = Math.max(...dataArray) / 255; // Normalizar nível do áudio
+        setAudioLevel(level);
+        if (isMicrophoneActive) {
+          requestAnimationFrame(updateAudioLevel);
+        }
+      };
+
+      updateAudioLevel();
 
       const mimeType = "audio/webm;codecs=opus";
       if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -92,6 +114,8 @@ export default function Interview() {
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
+        setIsMicrophoneActive(false); // Desativar indicador de microfone
+        audioContext.close(); // Fechar contexto de áudio
       };
 
       mediaRecorder.start();
@@ -99,29 +123,35 @@ export default function Interview() {
     } catch (e) {
       console.error("Erro ao iniciar gravação", e);
       setError("Não foi possível iniciar a gravação.");
+      setIsMicrophoneActive(false); // Desativar indicador de microfone em caso de erro
     }
   };
 
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
+    setIsMicrophoneActive(false); // Desativar indicador de microfone
   };
 
   const handleAnswerSubmit = async () => {
-    if (!sessionId || !questions[currentQuestionIndex] || !audioBlob) {
+    if (!sessionId || !questions[currentQuestionIndex]) {
       console.log("Erro: Dados insuficientes para salvar resposta.");
       return;
     }
 
     setLoading(true);
     try {
-      const transcription = await transcribeAudio(audioBlob);
+      if (!audioBlob) {
+        throw new Error("Erro: Nenhum áudio disponível para transcrição.");
+      }
+      const transcription = await transcribeAudio(audioBlob); // Ignorar o áudio
       console.log("Transcrição obtida:", transcription);
 
       await saveAnswer(
         sessionId,
         questions[currentQuestionIndex].id,
-        transcription
+        transcription,
+        "" // Ignorar o envio do áudio
       );
 
       setAudioBlob(null);
@@ -255,6 +285,29 @@ export default function Interview() {
         )}
       </div>
 
+      {isMicrophoneActive && (
+        <div className="mt-4 flex flex-col items-center">
+          <div className="flex items-center gap-2">
+            <FaMicrophone className="text-pink-500 text-2xl animate-pulse" />
+            <span className="text-pink-500 font-semibold">
+              Capturando áudio...
+            </span>
+          </div>
+          <div className="mt-2 flex gap-1">
+            {[...Array(10)].map((_, index) => (
+              <div
+                key={index}
+                className="w-2 h-6 bg-gradient-to-t from-blue-500 to-purple-500 rounded"
+                style={{
+                  transform: `scaleY(${audioLevel})`,
+                  transition: "transform 0.1s",
+                }}
+              ></div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {audioBlob && (
         <div className="mt-4">
           <audio controls src={URL.createObjectURL(audioBlob)} />
@@ -275,6 +328,21 @@ export default function Interview() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes wave {
+          0%,
+          100% {
+            transform: scaleY(0.5);
+          }
+          50% {
+            transform: scaleY(1);
+          }
+        }
+        .animate-wave {
+          animation: wave infinite;
+        }
+      `}</style>
     </div>
   );
 }
