@@ -103,56 +103,67 @@ export default function Dashboard() {
                             Relatório Completo
                           </h3>
                           <div className="mt-2">
-                            <p>
-                              <span className="font-semibold">
-                                Nível de Conhecimento:
-                              </span>{" "}
-                              {
-                                JSON.parse(session.fullReport)
-                                  .nivelDeConhecimento
+                            {(() => {
+                              try {
+                                const report = JSON.parse(session.fullReport);
+                                return (
+                                  <>
+                                    <p>
+                                      <span className="font-semibold">
+                                        Nível de Conhecimento:
+                                      </span>{" "}
+                                      {report.nivelDeConhecimento}
+                                    </p>
+                                    <p>
+                                      <span className="font-semibold">
+                                        Comunicação:
+                                      </span>{" "}
+                                      {report.comunicacao}
+                                    </p>
+                                    <div className="mt-2">
+                                      <h4 className="font-semibold">
+                                        Pontos Fortes:
+                                      </h4>
+                                      <ul className="list-disc ml-5">
+                                        {report.pontosFortes.map(
+                                          (ponto: string, index: number) => (
+                                            <li key={index}>{ponto}</li>
+                                          )
+                                        )}
+                                      </ul>
+                                    </div>
+                                    <div className="mt-2">
+                                      <h4 className="font-semibold">
+                                        Pontos de Melhoria:
+                                      </h4>
+                                      <ul className="list-disc ml-5">
+                                        {report.pontosDeMelhoria.map(
+                                          (ponto: string, index: number) => (
+                                            <li key={index}>{ponto}</li>
+                                          )
+                                        )}
+                                      </ul>
+                                    </div>
+                                    <div className="mt-2">
+                                      <h4 className="font-semibold">
+                                        Potencial de Crescimento:
+                                      </h4>
+                                      {report.potencialDeCrescimento}
+                                    </div>
+                                  </>
+                                );
+                              } catch (e) {
+                                console.error(
+                                  "Erro ao analisar o JSON de fullReport:",
+                                  e
+                                );
+                                return (
+                                  <p className="text-red-500">
+                                    Erro ao carregar o relatório completo.
+                                  </p>
+                                );
                               }
-                            </p>
-                            <p>
-                              <span className="font-semibold">
-                                Comunicação:
-                              </span>{" "}
-                              {JSON.parse(session.fullReport).comunicacao}
-                            </p>
-                            <div className="mt-2">
-                              <h4 className="font-semibold">Pontos Fortes:</h4>
-                              <ul className="list-disc ml-5">
-                                {JSON.parse(
-                                  session.fullReport
-                                ).pontosFortes.map(
-                                  (ponto: string, index: number) => (
-                                    <li key={index}>{ponto}</li>
-                                  )
-                                )}
-                              </ul>
-                            </div>
-                            <div className="mt-2">
-                              <h4 className="font-semibold">
-                                Pontos de Melhoria:
-                              </h4>
-                              <ul className="list-disc ml-5">
-                                {JSON.parse(
-                                  session.fullReport
-                                ).pontosDeMelhoria.map(
-                                  (ponto: string, index: number) => (
-                                    <li key={index}>{ponto}</li>
-                                  )
-                                )}
-                              </ul>
-                            </div>
-                            <div className="mt-2">
-                              <h4 className="font-semibold">
-                                Potencial de Crescimento:
-                              </h4>
-                              {
-                                JSON.parse(session.fullReport)
-                                  .potencialDeCrescimento
-                              }
-                            </div>
+                            })()}
                           </div>
                         </div>
                       )}
