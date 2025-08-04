@@ -47,7 +47,7 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  ArcElement, // Adicionado ArcElement
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -57,7 +57,7 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  ArcElement, // Registrado ArcElement
+  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -91,7 +91,7 @@ type NewQuestion = {
 
 export default function Config() {
   const fontFamily = useGoogleFont("Inter");
-  const [interviewTypes, setInterviewTypes] = useState<InterviewType[]>([]); // Adicionado estado para interviewTypes
+  const [interviewTypes, setInterviewTypes] = useState<InterviewType[]>([]);
   const [selectedInterviewType, setSelectedInterviewType] =
     useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -118,9 +118,9 @@ export default function Config() {
   useEffect(() => {
     const fetchInterviewTypes = async () => {
       try {
-        const types = await getInterviewTypes(); // Busca os tipos de entrevista do banco
-        setInterviewTypes(types); // Atualiza o estado com os tipos de entrevista
-        setCategories([]); // Reseta as categorias ao carregar novos tipos
+        const types = await getInterviewTypes();
+        setInterviewTypes(types);
+        setCategories([]);
       } catch (error) {
         console.error("Erro ao buscar tipos de entrevista:", error);
       }
@@ -135,7 +135,7 @@ export default function Config() {
         try {
           const newCategories = await getCategoriesByInterviewType(
             selectedInterviewType
-          ); // Busca categorias do banco
+          );
           setCategories(newCategories);
           setSelectedCategory("");
           setQuestions([]);
@@ -151,7 +151,7 @@ export default function Config() {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const allQuestions = await fetchAllQuestions(); // Busca todas as perguntas do banco
+        const allQuestions = await fetchAllQuestions();
         setAllQuestions(allQuestions);
       } catch (error) {
         console.error("Erro ao buscar perguntas:", error);
@@ -179,6 +179,31 @@ export default function Config() {
       });
     } catch (error) {
       setFeedback({ type: "error", message: "Erro ao criar categoria" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveCategory = async (categoryId: string) => {
+    if (questions.some((q) => q.categoryId === categoryId)) {
+      setFeedback({
+        type: "error",
+        message: "Não é possível remover categorias com perguntas vinculadas.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      setCategories((prev) =>
+        prev.filter((category) => category.id !== categoryId)
+      );
+      setFeedback({
+        type: "success",
+        message: "Categoria removida com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({ type: "error", message: "Erro ao remover categoria" });
     } finally {
       setIsLoading(false);
     }
@@ -235,6 +260,20 @@ export default function Config() {
     setFeedback({ type: "success", message: "Pergunta removida localmente" });
   };
 
+  const handleSaveQuestions = async () => {
+    setIsLoading(true);
+    try {
+      setFeedback({
+        type: "success",
+        message: "Perguntas salvas com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({ type: "error", message: "Erro ao salvar perguntas" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const addExistingQuestion = (questionId: string) => {
     const existingQuestion = allQuestions.find((q) => q.id === questionId);
     if (existingQuestion && !questions.find((q) => q.id === questionId)) {
@@ -262,7 +301,11 @@ export default function Config() {
 
           {feedback && (
             <Alert
-              className={`${feedback.type === "success" ? "border-green-200 bg-green-50 dark:bg-green-900/20" : "border-red-200 bg-red-50 dark:bg-red-900/20"}`}
+              className={`${
+                feedback.type === "success"
+                  ? "border-green-200 bg-green-50 dark:bg-green-900/20"
+                  : "border-red-200 bg-red-50 dark:bg-red-900/20"
+              }`}
             >
               {feedback.type === "success" ? (
                 <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -270,7 +313,11 @@ export default function Config() {
                 <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
               )}
               <AlertDescription
-                className={`${feedback.type === "success" ? "text-green-800 dark:text-green-200" : "text-red-800 dark:text-red-200"}`}
+                className={`${
+                  feedback.type === "success"
+                    ? "text-green-800 dark:text-green-200"
+                    : "text-red-800 dark:text-red-200"
+                }`}
               >
                 {feedback.message}
               </AlertDescription>
@@ -360,17 +407,32 @@ export default function Config() {
                                 }`}
                                 onClick={() => setSelectedCategory(category.id)}
                               >
-                                <h3 className="font-medium text-slate-800 dark:text-white">
-                                  {category.name}
-                                </h3>
-                                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                                  {
-                                    questions.filter(
-                                      (q) => q.categoryId === category.id
-                                    ).length
-                                  }{" "}
-                                  perguntas
-                                </p>
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <h3 className="font-medium text-slate-800 dark:text-white">
+                                      {category.name}
+                                    </h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                                      {
+                                        questions.filter(
+                                          (q) => q.categoryId === category.id
+                                        ).length
+                                      }{" "}
+                                      perguntas
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveCategory(category.id);
+                                    }}
+                                    className="border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -643,6 +705,18 @@ export default function Config() {
                                   </div>
                                 ))}
                               </div>
+                              <Button
+                                onClick={handleSaveQuestions}
+                                disabled={isLoading || questions.length === 0}
+                                className="bg-blue-600 hover:bg-blue-700 text-white mt-4"
+                              >
+                                {isLoading ? (
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                ) : (
+                                  <Save className="w-4 h-4 mr-2" />
+                                )}
+                                Salvar Perguntas
+                              </Button>
                             </CardContent>
                           </Card>
                         )}

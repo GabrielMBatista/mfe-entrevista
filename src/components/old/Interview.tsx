@@ -52,7 +52,7 @@ export default function Interview() {
 
         // Verificar se a sessão já possui respostas
         const summary = await fetchSessionSummary(session.id);
-        if (summary.answers.length > 0) {
+        if (summary.answers && summary.answers.length > 0) {
           setSessionSummary(summary); // Direcionar para a etapa final
         } else {
           setQuestions(invitation.questions);
@@ -228,12 +228,16 @@ export default function Interview() {
         <ul className="mt-4 space-y-4">
           {sessionSummary.answers.map((answer) => (
             <li key={answer.id} className="border p-4 rounded">
-              <p className="font-semibold">{answer.question.content}</p>
+              <p className="font-semibold">
+                {typeof answer.question === "string"
+                  ? answer.question
+                  : (answer.question as { content: string }).content}
+              </p>
               <textarea
                 className="w-full mt-2 p-2 border rounded"
-                value={answer.transcript}
+                value={answer.response}
                 onChange={(e) =>
-                  handleTranscriptUpdate(answer.id, e.target.value)
+                  handleTranscriptUpdate(answer?.id ?? "", e.target.value)
                 }
               />
               <div className="mt-2">

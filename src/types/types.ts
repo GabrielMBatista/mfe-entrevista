@@ -35,7 +35,13 @@ export type SessionSummary = {
   interviewType?: string;
   summary?: string;
   fullReport?: string;
-  answers?: { question: string; response: string }[]; // Ajustado para refletir o formato correto
+  answers: Array<{
+    question: string;
+    response?: string; // Tornar opcional para compatibilidade
+    id?: string; // Adicionar propriedades opcionais
+    transcript?: string;
+    audioBlob?: string | null;
+  }>;
 };
 
 declare global {
