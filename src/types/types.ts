@@ -9,17 +9,33 @@ export type Question = {
 
 export type Answer = {
   id: string;
-  transcript: string;
-  question: {
-    id: string;
-    content: string;
-  };
-  audioBlob: string | null;
+  transcript: string; // Transcrição da resposta
+  question: string; // Ajustado para ser uma string diretamente
+  audioBlob?: string | null; // Blob de áudio opcional
+};
+
+export type Session = {
+  id: string;
+  candidateName: string;
+  score: number;
+  completedAt: string;
+  category: string;
+  interviewType: string;
+  summary: string;
+  fullReport?: string; // JSON com campos {nivelDeConhecimento, comunicacao, pontosFortes[], pontosDeMelhoria[], potencialDeCrescimento}
+  answers: { question: string; response: string }[];
 };
 
 export type SessionSummary = {
   id: string;
-  answers: Answer[];
+  candidateName?: string;
+  score?: number;
+  completedAt?: string;
+  category?: string;
+  interviewType?: string;
+  summary?: string;
+  fullReport?: string;
+  answers?: { question: string; response: string }[]; // Ajustado para refletir o formato correto
 };
 
 declare global {

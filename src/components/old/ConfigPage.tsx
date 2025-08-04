@@ -10,8 +10,8 @@ import {
   createQuestion,
 } from "@/lib/api";
 import { Category, InterviewType, Question } from "@/types/types";
-import InterviewTypeSelector from "@/components/InterviewTypeSelector";
-import CategoryManager from "@/components/CategoryManager";
+import InterviewTypeSelector from "@/components/old/InterviewTypeSelector";
+import CategoryManager from "@/components/old/CategoryManager";
 
 const mockTechnologies = [
   "React",

@@ -165,7 +165,7 @@ async function getQuestionsByCategory(categoryId: string): Promise<Question[]> {
   }
 }
 
-async function fetchAllQuestions(): Promise<{ id: string; content: string }[]> {
+async function fetchAllQuestions(): Promise<Question[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/questions/all`);
     if (!response.ok) {
@@ -289,7 +289,7 @@ async function fetchCompletedSessions(
   startDate?: string,
   endDate?: string,
   columns?: string[]
-): Promise<any[]> {
+): Promise<SessionSummary[]> {
   try {
     const queryParams = new URLSearchParams();
     if (startDate) queryParams.append("startDate", startDate);
@@ -320,7 +320,7 @@ async function createCategory(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ interviewTypeId, name }),
+      body: JSON.stringify({ interviewTypeId, name }), 
     });
     if (!response.ok) {
       throw new Error("Erro ao criar categoria.");
