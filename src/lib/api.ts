@@ -250,7 +250,7 @@ async function updateTranscript(
   }
 }
 
-async function finalizeSession(sessionId: string): Promise<void> {
+async function finalizeSession(sessionId: string): Promise<Response> {
   try {
     const response = await fetch(
       `${API_BASE_URL}/sessions/${sessionId}/evaluate`,
@@ -259,9 +259,7 @@ async function finalizeSession(sessionId: string): Promise<void> {
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Erro ao finalizar sessão.");
-    }
+    return response;
   } catch (error) {
     console.error("Erro em finalizeSession:", error);
     throw error;

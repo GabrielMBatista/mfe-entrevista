@@ -8,6 +8,18 @@ import Summary from "@/components/interview/Summary";
 import ProgressHeader from "@/components/interview/ProgressHeader";
 import QuestionCard from "@/components/interview/QuestionCard";
 import RecordingControls from "@/components/interview/RecordingControls";
+import {
+  fetchInvitationById,
+  createSession,
+  transcribeAudio,
+  saveAnswer,
+  fetchSessionSummary,
+  updateTranscript,
+  finalizeSession,
+} from "@/lib/api";
+import { useRouter } from "next/router"; // Importar para redirecionamento
+import { toast, ToastContainer } from "react-toastify"; // Importar biblioteca de toast
+import "react-toastify/dist/ReactToastify.css"; // Estilos do toast
 
 // Tipagens conforme especificação
 type Question = {
@@ -15,23 +27,19 @@ type Question = {
   content: string;
 };
 
-type Answer = {
-  id: string;
-  transcript: string;
-  question: { id: string; content: string };
-  audioBlob: string | null;
-};
-
-type SessionSummary = {
-  id: string;
-  answers: Answer[];
-};
+import { Answer, SessionSummary } from "@/types/types";
 
 export default function Interview() {
   const fontFamily = useGoogleFont("Inter");
+  const router = useRouter(); // Para redirecionamento
+
+  // Captura o `invitationId` diretamente da URL
+  const invitationId =
+    typeof window !== "undefined"
+      ? window.location.pathname.split("/").pop()
+      : null;
 
   // Estados principais
-  const [invitationId] = useState("inv-123"); // Simulado - viria da URL
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -59,104 +67,14 @@ export default function Interview() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-
-  // Simulação das APIs
-  const fetchInvitationById = async (id: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return {
-      id,
-      candidateName: "João Silva",
-      position: "Desenvolvedor Frontend",
-      questions: [
-        {
-          id: "q1",
-          content:
-            "Conte-me sobre sua experiência com React e suas principais funcionalidades.",
-        },
-        {
-          id: "q2",
-          content:
-            "Como você abordaria a otimização de performance em uma aplicação web?",
-        },
-        {
-          id: "q3",
-          content:
-            "Descreva um projeto desafiador que você trabalhou recentemente.",
-        },
-        {
-          id: "q4",
-          content:
-            "Quais são suas expectativas para esta posição e como você se vê contribuindo?",
-        },
-      ],
-    };
-  };
-
-  const createSession = async (invitationId: string, startTime: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return { id: `session-${Date.now()}`, invitationId, startTime };
-  };
-
-  const transcribeAudio = async (blob: Blob): Promise<string> => {
-    setIsTranscribing(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsTranscribing(false);
-
-    // Simulação de transcrição baseada na pergunta atual
-    const mockTranscripts = [
-      "Tenho 3 anos de experiência com React, trabalhando principalmente com hooks, context API e gerenciamento de estado. Já desenvolvi várias SPAs e tenho experiência com Next.js também.",
-      "Para otimização, foco em lazy loading, code splitting, otimização de imagens, memoização de componentes e uso de ferramentas como Lighthouse para monitoramento.",
-      "Recentemente trabalhei em um sistema de dashboard complexo com múltiplas visualizações de dados em tempo real, usando WebSockets e otimizações de rendering.",
-      "Busco uma posição onde possa crescer tecnicamente e contribuir com soluções inovadoras. Tenho interesse em arquitetura frontend e liderança técnica.",
-    ];
-
-    return (
-      mockTranscripts[currentQuestionIndex] ||
-      "Transcrição da resposta do candidato..."
-    );
-  };
-
-  const saveAnswer = async (
-    sessionId: string,
-    questionId: string,
-    transcript: string,
-    audioBlob: Blob | null
-  ) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return {
-      id: `answer-${Date.now()}`,
-      transcript,
-      question: questions.find((q) => q.id === questionId)!,
-      audioBlob: audioBlob ? URL.createObjectURL(audioBlob) : null,
-    };
-  };
-
-  const fetchSessionSummary = async (
-    sessionId: string
-  ): Promise<SessionSummary> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return { id: sessionId, answers };
-  };
-
-  const updateTranscript = async (
-    sessionId: string,
-    answerId: string,
-    transcript: string
-  ) => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return { success: true };
-  };
-
-  const finalizeSession = async (sessionId: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    return {
-      success: true,
-      message: "Sessão finalizada e enviada para avaliação!",
-    };
-  };
-
+  console.log("invitationId", invitationId);
   // Inicialização
   useEffect(() => {
+    if (!invitationId) {
+      console.log("Aguardando invitationId...");
+      return; // Aguarda o `invitationId` estar disponível
+    }
+
     const initializeInterview = async () => {
       try {
         const invitation = await fetchInvitationById(invitationId);
@@ -177,6 +95,10 @@ export default function Interview() {
 
     initializeInterview();
   }, [invitationId]);
+
+  if (!invitationId) {
+    return <LoadingScreen fontFamily={fontFamily} />; // Exibe uma tela de carregamento enquanto o `invitationId` não está disponível
+  }
 
   // Configuração do áudio
   const setupAudio = async () => {
@@ -266,14 +188,22 @@ export default function Interview() {
       setTranscript(transcriptText);
 
       // Salvar resposta
+      const audioBlobString = audioBlob ? await audioBlob.text() : "";
       const answer = await saveAnswer(
         sessionId,
         questions[currentQuestionIndex].id,
         transcriptText,
-        audioBlob
+        audioBlobString
       );
 
-      setAnswers((prev) => [...prev, answer]);
+      setAnswers((prev) => [
+        ...prev,
+        {
+          ...answer,
+          question: questions[currentQuestionIndex].content,
+          audioBlob: answer.audioBlob ?? null,
+        },
+      ]);
 
       // Verificar se é a última pergunta
       if (currentQuestionIndex === questions.length - 1) {
@@ -314,17 +244,34 @@ export default function Interview() {
   };
 
   // Finalizar sessão
-  const handleFinalizeSession = async () => {
-    if (!sessionId) return;
+const handleFinalizeSession = async () => {
+  if (!sessionId) return;
 
-    try {
-      await finalizeSession(sessionId);
-      // Aqui poderia redirecionar para uma página de sucesso
-      alert("Entrevista finalizada com sucesso! Obrigado pela participação.");
-    } catch (error) {
-      console.error("Erro ao finalizar sessão:", error);
+  try {
+    setIsLoading(true);
+
+    const response = await finalizeSession(sessionId);
+
+    if (response.ok) {
+      toast.success("Entrevista finalizada com sucesso! Redirecionando...");
+
+      setTimeout(() => {
+        router.push("/thank-you");
+      }, 2000);
+    } else {
+      const errorText = await response.text();
+      console.error("Erro da API:", errorText);
+
+      toast.error("Erro ao finalizar a entrevista. Por favor, tente novamente.");
     }
-  };
+  } catch (error) {
+    console.error("Erro inesperado:", error);
+    toast.error("Ocorreu um erro inesperado. Tente reenviar.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   if (isLoading) {
     return <LoadingScreen fontFamily={fontFamily} />;
@@ -349,33 +296,39 @@ export default function Interview() {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
-    <div
-      style={{ fontFamily }}
-      className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
-    >
-      <Header showLinks={false} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ProgressHeader
-          currentQuestionIndex={currentQuestionIndex}
-          totalQuestions={questions.length}
-          progress={progress}
-        />
-        <QuestionCard question={currentQuestion} index={currentQuestionIndex} />
-        <RecordingControls
-          isRecording={isRecording}
-          audioBlob={audioBlob}
-          audioUrl={audioUrl}
-          transcript={transcript}
-          audioLevel={audioLevel}
-          isTranscribing={isTranscribing}
-          startRecording={startRecording}
-          stopRecording={stopRecording}
-          handleNextQuestion={handleNextQuestion}
-          setAudioBlob={setAudioBlob}
-          setAudioUrl={setAudioUrl}
-          setTranscript={setTranscript}
-        />
-      </main>
-    </div>
+    <>
+      <div
+        style={{ fontFamily }}
+        className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+      >
+        <Header showLinks={false} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ProgressHeader
+            currentQuestionIndex={currentQuestionIndex}
+            totalQuestions={questions.length}
+            progress={progress}
+          />
+          <QuestionCard
+            question={currentQuestion}
+            index={currentQuestionIndex}
+          />
+          <RecordingControls
+            isRecording={isRecording}
+            audioBlob={audioBlob}
+            audioUrl={audioUrl}
+            transcript={transcript}
+            audioLevel={audioLevel}
+            isTranscribing={isTranscribing}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            handleNextQuestion={handleNextQuestion}
+            setAudioBlob={setAudioBlob}
+            setAudioUrl={setAudioUrl}
+            setTranscript={setTranscript}
+          />
+        </main>
+      </div>
+      <ToastContainer /> {/* Componente para exibir os toasts */}
+    </>
   );
 }
