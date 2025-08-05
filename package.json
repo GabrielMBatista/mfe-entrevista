@@ -23,6 +23,8 @@
   "devDependencies": {
     "@gabrielmbatista/ui-library-stencil": "0.0.27",
     "@hookform/resolvers": "^5.1.1",
+    "@emailjs/browser": "^4.4.1",
+    "emailjs-com": "^3.2.0",
     "@module-federation/nextjs-mf": "^8.8.30",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

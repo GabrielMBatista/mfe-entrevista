@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Layout from "@/components/Layout";
+import Header from "@/components/ui/Header";
 
 export default function Home() {
   const fontFamily = useGoogleFont("Inter");
@@ -75,7 +75,8 @@ export default function Home() {
       style={{ fontFamily }}
       className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
     >
-      <Layout>
+      <Header showLinks={true} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-16">
           {/* Hero Section */}
           <div className="text-center">
@@ -221,7 +222,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </Layout>
+      </main>
     </div>
   );
 }

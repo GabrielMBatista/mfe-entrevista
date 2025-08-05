@@ -7,6 +7,7 @@ import {
   Category,
   SessionSummary,
 } from "@/types/types";
+import emailjs from "@emailjs/browser";
 
 // Funções
 
@@ -320,7 +321,7 @@ async function createCategory(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ interviewTypeId, name }), 
+      body: JSON.stringify({ interviewTypeId, name }),
     });
     if (!response.ok) {
       throw new Error("Erro ao criar categoria.");
@@ -421,6 +422,38 @@ async function reEvaluateSession(sessionId: string): Promise<void> {
   }
 }
 
+async function sendInvitationEmail(
+  candidateEmail: string,
+  candidateName: string,
+  invitationId: string
+): Promise<void> {
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+
+  if (!serviceId || !templateId || !publicKey || !API_BASE_URL) {
+    throw new Error("Variáveis de ambiente do EmailJS/API estão ausentes.");
+  }
+
+  const invitationLink = `https://mfe-entrevista.vercel.app/invitations/${invitationId}`;
+
+  try {
+    await emailjs.send(
+      serviceId,
+      templateId,
+      {
+        to_email: candidateEmail,
+        candidateName: candidateName,
+        invitationLink: invitationLink,
+      },
+      publicKey
+    );
+  } catch (error) {
+    console.error("Erro ao enviar email com EmailJS:", error);
+    throw new Error("Erro ao enviar email.");
+  }
+}
+
 export {
   fetchInvitationById,
   createSession,
@@ -442,4 +475,5 @@ export {
   updateQuestion,
   addQuestionToCategory,
   reEvaluateSession,
+  sendInvitationEmail,
 };

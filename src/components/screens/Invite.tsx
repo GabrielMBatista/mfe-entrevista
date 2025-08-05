@@ -23,11 +23,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import Layout from "../Layout";
+import Header from "@/components/ui/Header";
 import {
   getInterviewTypes,
   getCategoriesByInterviewType,
   sendInvitation,
+  sendInvitationEmail,
 } from "@/lib/api";
 
 type InterviewType = {
@@ -120,11 +121,19 @@ export default function Invite() {
     setIsLoading(true);
 
     try {
-      await sendInvitation(candidateName, candidateEmail, selectedCategory);
+      const invitation = await sendInvitation(
+        candidateName,
+        candidateEmail,
+        selectedCategory
+      );
+
+      await sendInvitationEmail(candidateEmail, candidateName, invitation.id);
+
       setFeedback({
         type: "success",
         message: `Convite enviado com sucesso para ${candidateEmail}!`,
       });
+
       // Reset form
       setCandidateName("");
       setCandidateEmail("");
@@ -145,8 +154,9 @@ export default function Invite() {
       style={{ fontFamily }}
       className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
     >
-      <Layout title="Enviar Convite">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <Header showLinks={true} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
           <div className="mb-8">
             <p className="text-slate-600 dark:text-slate-300">
               Envie convites personalizados para candidatos selecionando o tipo
@@ -325,7 +335,7 @@ export default function Invite() {
             </Button>
           </div>
         </div>
-      </Layout>
+      </main>
     </div>
   );
 }

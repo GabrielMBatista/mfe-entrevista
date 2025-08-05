@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Layout from "../Layout";
+import Header from "@/components/ui/Header";
 import { fetchCompletedSessions, reEvaluateSession } from "@/lib/api";
 import { Session, SessionSummary } from "@/types/types";
 import { Pagination } from "../ui/pagination";
@@ -230,7 +230,8 @@ export default function Dashboard() {
       style={{ fontFamily }}
       className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
     >
-      <Layout title="Dashboard">
+      <Header showLinks={true} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
           <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
             <CardHeader>
@@ -707,7 +708,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </Layout>
+      </main>
     </div>
   );
 }

@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Layout from "../Layout";
+import Header from "@/components/ui/Header";
 import {
   getInterviewTypes,
   getCategoriesByInterviewType,
@@ -291,8 +291,9 @@ export default function Config() {
       style={{ fontFamily }}
       className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
     >
-      <Layout title="Configurações">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <Header showLinks={true} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
           <div className="mb-8">
             <p className="text-slate-600 dark:text-slate-300">
               Administre tipos de entrevista, categorias e perguntas do sistema.
@@ -728,7 +729,7 @@ export default function Config() {
             </CardContent>
           </Card>
         </div>
-      </Layout>
+      </main>
     </div>
   );
 }

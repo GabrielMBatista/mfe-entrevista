@@ -17,7 +17,7 @@ import {
   CheckCircle,
   Volume2,
 } from "lucide-react";
-import Layout from "../Layout";
+import Header from "@/components/ui/Header";
 
 // Tipagens conforme especificação
 type Question = {
@@ -342,16 +342,14 @@ export default function Interview() {
         style={{ fontFamily }}
         className="min-h-screen bg-slate-50 dark:bg-slate-900"
       >
-        <Layout>
-          <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-slate-600 dark:text-slate-300">
-                Carregando entrevista...
-              </p>
-            </div>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-slate-600 dark:text-slate-300">
+              Carregando entrevista...
+            </p>
           </div>
-        </Layout>
+        </div>
       </div>
     );
   }
@@ -362,115 +360,113 @@ export default function Interview() {
         style={{ fontFamily }}
         className="min-h-screen bg-slate-50 dark:bg-slate-900"
       >
-        <Layout>
-          <div className="max-w-4xl mx-auto">
-            <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-slate-800 dark:text-white flex items-center gap-2">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  Resumo da Entrevista
-                </CardTitle>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Revise suas respostas antes de finalizar a sessão
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {sessionSummary.answers.map((answer, index) => (
-                  <div
-                    key={answer.id}
-                    className="border border-slate-200 dark:border-slate-700 rounded-lg p-4"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <Badge
-                          variant="outline"
-                          className="mb-2 border-slate-300 dark:border-slate-600"
-                        >
-                          Pergunta {index + 1}
-                        </Badge>
-                        <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">
-                          {answer.question.content}
-                        </p>
-                      </div>
-                      {answer.audioBlob && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const audio = new Audio(answer.audioBlob!);
-                            audio.play();
-                          }}
-                          className="ml-4 border-slate-300 dark:border-slate-600"
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </Button>
-                      )}
+        <div className="max-w-4xl mx-auto">
+          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-slate-800 dark:text-white flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+                Resumo da Entrevista
+              </CardTitle>
+              <p className="text-slate-600 dark:text-slate-400">
+                Revise suas respostas antes de finalizar a sessão
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {sessionSummary.answers.map((answer, index) => (
+                <div
+                  key={answer.id}
+                  className="border border-slate-200 dark:border-slate-700 rounded-lg p-4"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <Badge
+                        variant="outline"
+                        className="mb-2 border-slate-300 dark:border-slate-600"
+                      >
+                        Pergunta {index + 1}
+                      </Badge>
+                      <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">
+                        {answer.question.content}
+                      </p>
                     </div>
-
-                    {editingAnswerId === answer.id ? (
-                      <div className="space-y-3">
-                        <Textarea
-                          value={editTranscript}
-                          onChange={(e) => setEditTranscript(e.target.value)}
-                          className="bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white"
-                          rows={4}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleEditTranscript(answer.id)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Salvar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingAnswerId(null);
-                              setEditTranscript("");
-                            }}
-                            className="border-slate-300 dark:border-slate-600"
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-slate-800 dark:text-slate-200 mb-3 leading-relaxed">
-                          {answer.transcript}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingAnswerId(answer.id);
-                            setEditTranscript(answer.transcript);
-                          }}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                        >
-                          Editar transcrição
-                        </Button>
-                      </div>
+                    {answer.audioBlob && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const audio = new Audio(answer.audioBlob!);
+                          audio.play();
+                        }}
+                        className="ml-4 border-slate-300 dark:border-slate-600"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
-                ))}
 
-                <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
-                  <Button
-                    onClick={handleFinalizeSession}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                  >
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                    Finalizar Sessão
-                  </Button>
+                  {editingAnswerId === answer.id ? (
+                    <div className="space-y-3">
+                      <Textarea
+                        value={editTranscript}
+                        onChange={(e) => setEditTranscript(e.target.value)}
+                        className="bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white"
+                        rows={4}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleEditTranscript(answer.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Salvar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingAnswerId(null);
+                            setEditTranscript("");
+                          }}
+                          className="border-slate-300 dark:border-slate-600"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-slate-800 dark:text-slate-200 mb-3 leading-relaxed">
+                        {answer.transcript}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingAnswerId(answer.id);
+                          setEditTranscript(answer.transcript);
+                        }}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                      >
+                        Editar transcrição
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </Layout>
+              ))}
+
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  onClick={handleFinalizeSession}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Finalizar Sessão
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -483,8 +479,10 @@ export default function Interview() {
       style={{ fontFamily }}
       className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
     >
-      <Layout>
-        <div className="max-w-4xl mx-auto">
+      <Header showLinks={false} />
+      {/* Área de responder perguntas */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
           {/* Header com progresso */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -570,11 +568,11 @@ export default function Interview() {
                 </div>
 
                 {/* Controles */}
-                <div className="flex justify-center gap-4">
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
                   {!isRecording ? (
                     <Button
                       onClick={startRecording}
-                      className="bg-red-600 hover:bg-red-700 text-white"
+                      className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
                       size="lg"
                       disabled={!!audioBlob}
                     >
@@ -586,7 +584,7 @@ export default function Interview() {
                       onClick={stopRecording}
                       variant="outline"
                       size="lg"
-                      className="border-slate-300 dark:border-slate-600"
+                      className="border-slate-300 dark:border-slate-600 w-full sm:w-auto"
                     >
                       <MicOff className="h-5 w-5 mr-2" />
                       Parar Gravação
@@ -601,7 +599,7 @@ export default function Interview() {
                           const audio = new Audio(audioUrl!);
                           audio.play();
                         }}
-                        className="border-slate-300 dark:border-slate-600"
+                        className="border-slate-300 dark:border-green-600 text-slate-700 dark:text-green-400 hover:bg-slate-100 dark:hover:bg-green-900/20 w-full sm:w-auto"
                       >
                         <Play className="h-4 w-4 mr-2" />
                         Reproduzir
@@ -614,7 +612,7 @@ export default function Interview() {
                           setAudioUrl(null);
                           setTranscript("");
                         }}
-                        className="border-slate-300 dark:border-slate-600"
+                        className="border-slate-300 dark:border-yellow-600 text-slate-700 dark:text-yellow-400 hover:bg-slate-100 dark:hover:bg-yellow-900/20 w-full sm:w-auto"
                       >
                         <RotateCcw className="h-4 w-4 mr-2" />
                         Regravar
@@ -671,7 +669,7 @@ export default function Interview() {
             </CardContent>
           </Card>
         </div>
-      </Layout>
+      </main>
     </div>
   );
 }
