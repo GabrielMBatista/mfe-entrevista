@@ -74,3 +74,9 @@ export type Category = {
   name: string;
   interviewTypeId: string;
 };
+
+export type NewQuestion = {
+  content: string;
+  technologies: string;
+  difficulty: string;
+};
