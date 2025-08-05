@@ -1,10 +1,9 @@
 export type Question = {
-  content: string;
   id: string;
-  text: string;
-  technologies: string[] | string; // Pode ser array ou string
-  order: number;
-  categoryId: string;
+  content: string;
+  technologies: string; // String única, conforme o novo formato
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Answer = {
@@ -69,14 +68,48 @@ export type InterviewType = {
   description: string;
 };
 
-export type Category = {
+export interface Category {
   id: string;
   name: string;
   interviewTypeId: string;
-};
+  questionCount: number; // Adicionado
+  questionIds: string[]; // Adicionado
+}
 
 export type NewQuestion = {
   content: string;
   technologies: string;
   difficulty: string;
 };
+
+export interface QuestionsManagerProps {
+  questions: Question[];
+  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
+  allQuestions: Question[];
+  newQuestion: NewQuestion;
+  selectedCategory: string;
+  setNewQuestion: React.Dispatch<React.SetStateAction<NewQuestion>>;
+  editingQuestion: string | null;
+  setEditingQuestion: React.Dispatch<React.SetStateAction<string | null>>;
+  editContent: string;
+  setEditContent: React.Dispatch<React.SetStateAction<string>>;
+  handleCreateQuestion: () => void;
+  handleUpdateQuestion: (
+    questionId: string,
+    updatedContent: string,
+    updatedTechnologies: string
+  ) => void;
+  handleRemoveQuestion: (questionId: string) => void;
+  handleSaveQuestions: () => void;
+  addExistingQuestion: (questionId: string) => void;
+  handleRemoveQuestionFromCategory: (questionId: string) => void;
+  isLoading: boolean;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    search: string;
+    setPage: (page: number) => void;
+    setSearch: (search: string) => void;
+  };
+}

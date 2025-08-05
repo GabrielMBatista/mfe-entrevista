@@ -8,9 +8,9 @@ import {
   RefreshCw,
   Calendar,
   User,
-  Star,
   Tag,
   FileText,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Header from "@/components/ui/Header";
-import { fetchCompletedSessions, reEvaluateSession } from "@/lib/api";
+import {
+  fetchCompletedSessions,
+  reEvaluateSession,
+  getInterviewTypes,
+  getCategoriesByInterviewType,
+} from "@/lib/api";
 import { Session, SessionSummary } from "@/types/types";
 import { Pagination } from "../ui/pagination";
 import Charts from "@/components/dashboard/Charts";
@@ -43,6 +48,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { InterviewFilters } from "@/components/dashboard/InterviewFilters";
+import { useInterviewFilters } from "@/hooks/useInterviewFilters";
 
 // Registre os módulos necessários do Chart.js
 ChartJS.register(
@@ -75,74 +82,153 @@ export default function Dashboard() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const pageSize = 5;
-
-  const totalPages = Math.ceil(sessions.length / pageSize);
-  const paginatedSessions = sessions.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
-  }>({ key: "candidateName", direction: "desc" });
+  }>({
+    key: "candidateName", // Default sorting key
+    direction: "asc", // Default sorting direction
+  });
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [interviewTypes, setInterviewTypes] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  console.log("session.", sessions);
 
-  const handleSort = (key: string) => {
+  const { filters, handleFilterChange } = useInterviewFilters({});
+
+  // Função para buscar tipos de entrevista da API
+  const fetchInterviewTypes = async () => {
+    try {
+      const response = await getInterviewTypes();
+      setInterviewTypes(
+        response.map((type) => ({ id: type.id, name: type.name }))
+      );
+    } catch (error) {
+      console.error("Erro ao buscar tipos de entrevista:", error);
+      // Fallback para dados mock em caso de erro
+      setInterviewTypes([
+        { id: "1", name: "Frontend" },
+        { id: "2", name: "Backend" },
+      ]);
+    }
+  };
+
+  // Função para buscar todas as categorias da API
+  const fetchCategories = async () => {
+    try {
+      // Primeiro buscar os tipos de entrevista para depois buscar as categorias de cada tipo
+      const interviewTypesResponse = await getInterviewTypes();
+      let allCategories: Array<{ id: string; name: string }> = [];
+
+      // Para cada tipo de entrevista, buscar suas categorias
+      for (const interviewType of interviewTypesResponse) {
+        try {
+          const categoriesResponse = await getCategoriesByInterviewType(
+            interviewType.id,
+            1,
+            100
+          );
+          const formattedCategories = categoriesResponse.data.map(
+            (category) => ({
+              id: category.id,
+              name: category.name,
+            })
+          );
+          allCategories = [...allCategories, ...formattedCategories];
+        } catch (error) {
+          console.error(
+            `Erro ao buscar categorias para tipo ${interviewType.name}:`,
+            error
+          );
+        }
+      }
+
+      setCategories(allCategories);
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error);
+      // Fallback para dados mock em caso de erro
+      setCategories([
+        { id: "1", name: "Dev Júnior" },
+        { id: "2", name: "Dev Pleno" },
+      ]);
+    }
+  };
+
+  const handleSort = async (key: string) => {
     let direction: "asc" | "desc" = "asc";
-    if (
-      sortConfig &&
-      sortConfig.key === key &&
-      sortConfig.direction === "asc"
-    ) {
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
     setSortConfig({ key, direction });
+
+    try {
+      const response = await fetchCompletedSessions({
+        page: currentPage,
+        limit: pageSize,
+        startDate: filters.completedAt, // Filtro por data
+        endDate: undefined, // Ajuste conforme necessário
+        sortBy: key,
+        sortOrder: direction,
+        ...filters, // Envia os filtros adicionais
+      });
+      const { data, page } = response;
+      const transformedSessions = data.map(mapSessionSummaryToSession);
+      setSessions(transformedSessions);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error("Erro ao buscar sessões ordenadas:", error);
+    }
   };
 
-  const sortedSessions = [...paginatedSessions].sort((a, b) => {
-    if (!sortConfig) return 0;
-    const { key, direction } = sortConfig;
-    const order = direction === "asc" ? 1 : -1;
-    if ((a[key as keyof Session] ?? "") < (b[key as keyof Session] ?? ""))
-      return -1 * order;
-    if ((a[key as keyof Session] ?? "") > (b[key as keyof Session] ?? ""))
-      return 1 * order;
-    return 0;
-  });
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  const fetchSessions = async () => {
+    try {
+      const response = await fetchCompletedSessions({
+        page: currentPage,
+        limit: pageSize,
+        startDate: filters.completedAt, // Filtro por data
+        endDate: undefined, // Ajuste conforme necessário
+        sortBy: sortConfig.key,
+        sortOrder: sortConfig.direction,
+        ...filters, // Envia os filtros adicionais
+      });
+      const { data, total, page, limit } = response;
+      const transformedSessions = data.map(mapSessionSummaryToSession);
+      setSessions(transformedSessions);
+      setCurrentPage(page);
+      setTotalPages(Math.ceil(total / limit));
+    } catch (error) {
+      console.error("Erro ao buscar sessões concluídas:", error);
+    }
   };
 
   useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const completedSessions = await fetchCompletedSessions();
-        const transformedSessions = completedSessions.map(
-          mapSessionSummaryToSession
-        ); // Mapeia os dados
-        setSessions(transformedSessions);
-      } catch (error) {
-        console.error("Erro ao buscar sessões concluídas:", error);
-      }
-    };
-
     fetchSessions();
-  }, []);
+    fetchInterviewTypes();
+    fetchCategories();
+  }, [currentPage, sortConfig, filters]); // Adicione `filters` como dependência
 
   const toggleRowExpansion = (sessionId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(sessionId)) {
-      newExpanded.delete(sessionId);
-    } else {
-      newExpanded.add(sessionId);
-    }
-    setExpandedRows(newExpanded);
+    setExpandedRows((prev) => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(sessionId)) {
+        newExpanded.delete(sessionId);
+      } else {
+        newExpanded.add(sessionId);
+      }
+      console.log(
+        "Toggling row:",
+        sessionId,
+        "New expanded rows:",
+        Array.from(newExpanded)
+      );
+      return newExpanded;
+    });
   };
 
   const handleReEvaluateSession = async (sessionId: string) => {
@@ -222,8 +308,49 @@ export default function Dashboard() {
     },
   };
 
-  // Dados para a tabela de ranking
-  const rankingData = [...sessions].sort((a, b) => b.score - a.score);
+  const handleNextPage = async () => {
+    if (currentPage < totalPages) {
+      try {
+        const response = await fetchCompletedSessions({
+          page: currentPage + 1,
+          limit: pageSize,
+          startDate: filters.completedAt, // Filtro por data
+          endDate: undefined, // Ajuste conforme necessário
+          sortBy: sortConfig.key,
+          sortOrder: sortConfig.direction,
+          ...filters, // Envia os filtros adicionais
+        });
+        const { data, page } = response;
+        const transformedSessions = data.map(mapSessionSummaryToSession);
+        setSessions(transformedSessions);
+        setCurrentPage(page);
+      } catch (error) {
+        console.error("Erro ao buscar próxima página:", error);
+      }
+    }
+  };
+
+  const handlePreviousPage = async () => {
+    if (currentPage > 1) {
+      try {
+        const response = await fetchCompletedSessions({
+          page: currentPage - 1,
+          limit: pageSize,
+          startDate: filters.completedAt, // Filtro por data
+          endDate: undefined, // Ajuste conforme necessário
+          sortBy: sortConfig.key,
+          sortOrder: sortConfig.direction,
+          ...filters, // Envia os filtros adicionais
+        });
+        const { data, page } = response;
+        const transformedSessions = data.map(mapSessionSummaryToSession);
+        setSessions(transformedSessions);
+        setCurrentPage(page);
+      } catch (error) {
+        console.error("Erro ao buscar página anterior:", error);
+      }
+    }
+  };
 
   return (
     <div
@@ -235,18 +362,51 @@ export default function Dashboard() {
         <div className="space-y-6">
           <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
             <CardHeader>
-              <CardTitle className="text-slate-800 dark:text-white">
-                Sessões Concluídas
-              </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                Lista de todas as entrevistas finalizadas com detalhes
-                expandíveis
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-slate-800 dark:text-white">
+                    Sessões Concluídas
+                  </CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-400">
+                    Lista de todas as entrevistas finalizadas com detalhes
+                    expandíveis
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                  className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtros
+                  {isFilterMenuOpen ? (
+                    <ChevronUp className="w-4 h-4 ml-2" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              {/* Filtros */}
+              {isFilterMenuOpen && (
+                <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+                  <InterviewFilters
+                    isOpen={true}
+                    filters={filters}
+                    interviewTypes={interviewTypes}
+                    categories={categories}
+                    onFilterChange={handleFilterChange}
+                    showScore={true}
+                    showDate={true}
+                  />
+                </div>
+              )}
+
               {/* Versão Mobile */}
               <div className="block sm:hidden space-y-4 mt-4">
-                {paginatedSessions.map((session) => (
+                {sessions.map((session) => (
                   <div
                     key={session.id}
                     className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2"
@@ -258,7 +418,7 @@ export default function Dashboard() {
                       <span
                         className={`text-xs font-semibold ${getScoreColor(session.score)}`}
                       >
-                        {session.score.toFixed(0)}/100 ⭐
+                        {session.score.toFixed(0)}/100
                       </span>
                     </div>
 
@@ -282,7 +442,11 @@ export default function Dashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toggleRowExpansion(session.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleRowExpansion(session.id);
+                        }}
                         className="text-xs border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
                       >
                         {expandedRows.has(session.id) ? "Fechar" : "Expandir"}
@@ -291,7 +455,11 @@ export default function Dashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleReEvaluateSession(session.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleReEvaluateSession(session.id);
+                        }}
                         className="text-xs border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
                       >
                         Reavaliar
@@ -310,23 +478,23 @@ export default function Dashboard() {
                                   Relatório Completo:
                                 </p>
                                 <div className="space-y-2">
-                                  <p>
+                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     <strong>Nível de Conhecimento:</strong>{" "}
                                     {report.nivelDeConhecimento}
                                   </p>
-                                  <p>
+                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     <strong>Comunicação:</strong>{" "}
                                     {report.comunicacao}
                                   </p>
-                                  <p>
+                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     <strong>Potencial:</strong>{" "}
                                     {report.potencialDeCrescimento}
                                   </p>
-                                  <p>
+                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     <strong>Pontos Fortes:</strong>{" "}
                                     {report.pontosFortes?.join(", ")}
                                   </p>
-                                  <p>
+                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     <strong>Pontos de Melhoria:</strong>{" "}
                                     {report.pontosDeMelhoria?.join(", ")}
                                   </p>
@@ -347,10 +515,10 @@ export default function Dashboard() {
                                   key={index}
                                   className="p-2 border border-slate-200 dark:border-slate-600 rounded-lg"
                                 >
-                                  <p className="font-medium text-slate-800 dark:text-white">
+                                  <p className="font-medium text-slate-800 dark:text-white break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     {answer.question}
                                   </p>
-                                  <p className="text-slate-600 dark:text-slate-300">
+                                  <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
                                     {answer.response}
                                   </p>
                                 </div>
@@ -364,7 +532,7 @@ export default function Dashboard() {
                           <p className="font-semibold text-slate-800 dark:text-white">
                             Resumo Para o usuario:
                           </p>
-                          <p className="whitespace-pre-wrap">
+                          <p className="whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
                             {session.summary}
                           </p>
                         </div>
@@ -434,7 +602,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedSessions.map((session) => (
+                  {sessions.map((session) => (
                     <React.Fragment key={session.id}>
                       <TableRow className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-xs sm:text-sm">
                         <TableCell className="font-medium text-slate-800 dark:text-white">
@@ -445,7 +613,6 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Star className="w-4 h-4 text-yellow-500" />
                             <span
                               className={`font-semibold ${getScoreColor(session.score)}`}
                             >
@@ -481,7 +648,11 @@ export default function Dashboard() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => toggleRowExpansion(session.id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleRowExpansion(session.id);
+                              }}
                               className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm"
                             >
                               {expandedRows.has(session.id) ? (
@@ -499,9 +670,11 @@ export default function Dashboard() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() =>
-                                handleReEvaluateSession(session.id)
-                              }
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleReEvaluateSession(session.id);
+                              }}
                               className="border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs sm:text-sm"
                             >
                               <RefreshCw className="w-4 h-4 mr-1" />
@@ -512,7 +685,10 @@ export default function Dashboard() {
                       </TableRow>
 
                       {expandedRows.has(session.id) && (
-                        <TableRow className="border-slate-200 dark:border-slate-700">
+                        <TableRow
+                          key={`${session.id}-expanded`}
+                          className="border-slate-200 dark:border-slate-700"
+                        >
                           <TableCell
                             colSpan={6}
                             className="bg-slate-50 dark:bg-slate-800/50 p-4 text-xs sm:text-sm"
@@ -526,37 +702,38 @@ export default function Dashboard() {
                                   );
                                   return report ? (
                                     <div>
-                                      <h4 className="font-semibold text-slate-800 dark:text-white mb-3">
+                                      <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
+                                        <FileText className="w-4 h-4 mr-2" />
                                         Relatório Completo
                                       </h4>
                                       <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600 whitespace-pre-wrap break-words">
+                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
                                           <h5 className="font-medium text-slate-800 dark:text-white mb-2">
                                             Avaliação Geral
                                           </h5>
                                           <div className="space-y-2 text-sm">
-                                            <p className="text-slate-600 dark:text-slate-300">
+                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
                                               <strong>
                                                 Nível de Conhecimento:
                                               </strong>{" "}
                                               {report.nivelDeConhecimento}
                                             </p>
-                                            <p className="text-slate-600 dark:text-slate-300">
+                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
                                               <strong>Comunicação:</strong>{" "}
                                               {report.comunicacao}
                                             </p>
-                                            <p className="text-slate-600 dark:text-slate-300">
+                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
                                               <strong>Potencial:</strong>{" "}
                                               {report.potencialDeCrescimento}
                                             </p>
                                           </div>
                                         </div>
 
-                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600 whitespace-pre-wrap break-words">
+                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
                                           <h5 className="font-medium text-slate-800 dark:text-white mb-2">
                                             Pontos Fortes
                                           </h5>
-                                          <div className="flex flex-wrap gap-1">
+                                          <div className="flex flex-wrap gap-1 max-w-full">
                                             {report.pontosFortes?.map(
                                               (
                                                 ponto: string,
@@ -564,7 +741,7 @@ export default function Dashboard() {
                                               ) => (
                                                 <Badge
                                                   key={index}
-                                                  className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs"
+                                                  className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs break-words word-wrap text-wrap hyphens-auto max-w-full"
                                                 >
                                                   {ponto}
                                                 </Badge>
@@ -575,7 +752,7 @@ export default function Dashboard() {
                                           <h5 className="font-medium text-slate-800 dark:text-white mb-2 mt-4">
                                             Pontos de Melhoria
                                           </h5>
-                                          <div className="flex flex-wrap gap-1 break-words">
+                                          <div className="flex flex-wrap gap-1 max-w-full">
                                             {report.pontosDeMelhoria?.map(
                                               (
                                                 ponto: string,
@@ -583,7 +760,7 @@ export default function Dashboard() {
                                               ) => (
                                                 <Badge
                                                   key={index}
-                                                  className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs whitespace-normal break-words max-w-full"
+                                                  className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs  break-words word-wrap text-wrap hyphens-auto max-w-full"
                                                 >
                                                   {ponto}
                                                 </Badge>
@@ -597,39 +774,49 @@ export default function Dashboard() {
                                 })()}
 
                               {/* Respostas */}
-                              {session.answers.length > 0 && (
+                              {session.answers &&
+                                session.answers.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
+                                      <User className="w-4 h-4 mr-2" />
+                                      Respostas do Candidato
+                                    </h4>
+                                    <div className="space-y-4">
+                                      {session.answers.map((answer, index) => (
+                                        <div
+                                          key={index}
+                                          className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600"
+                                        >
+                                          <h5 className="font-medium text-slate-800 dark:text-white mb-2 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                            <strong>
+                                              Pergunta {index + 1}:
+                                            </strong>{" "}
+                                            {answer.question}
+                                          </h5>
+                                          <p className="text-slate-600 dark:text-slate-300 text-sm break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                            <strong>Resposta:</strong>{" "}
+                                            {answer.response}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {/* Resumo */}
+                              {session.summary && (
                                 <div>
-                                  <h4 className="font-semibold text-slate-800 dark:text-white mb-3">
-                                    Respostas
+                                  <h4 className="font-semibold text-slate-800 dark:text-white mb-2 flex items-center">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Resumo Para o Usuário
                                   </h4>
-                                  <div className="space-y-4">
-                                    {session.answers.map((answer, index) => (
-                                      <div
-                                        key={index}
-                                        className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600"
-                                      >
-                                        <h5 className="font-medium text-slate-800 dark:text-white mb-2">
-                                          {answer.question}
-                                        </h5>
-                                        <p className="text-slate-600 dark:text-slate-300 text-sm">
-                                          {answer.response}
-                                        </p>
-                                      </div>
-                                    ))}
+                                  <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+                                    <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                      {session.summary}
+                                    </p>
                                   </div>
                                 </div>
                               )}
-
-                              {/* Resumo */}
-                              <div>
-                                <h4 className="font-semibold text-slate-800 dark:text-white mb-2 flex items-center">
-                                  <FileText className="w-4 h-4 mr-2" />
-                                  Resumo Para o usuario
-                                </h4>
-                                <p className="text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 p-3 rounded-lg border border-slate-200 dark:border-slate-600 whitespace-pre-wrap break-words">
-                                  {session.summary}
-                                </p>
-                              </div>
                             </div>
                           </TableCell>
                         </TableRow>

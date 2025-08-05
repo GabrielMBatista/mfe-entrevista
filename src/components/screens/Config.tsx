@@ -21,6 +21,9 @@ import {
   createCategory,
   createQuestion,
   updateQuestion,
+  saveQuestions,
+  removeQuestionFromCategory,
+  deleteCategory,
 } from "@/lib/api";
 import { QuestionsManager } from "@/components/config/QuestionsManager";
 import { CategoriesManager } from "@/components/config/CategoriesManager";
@@ -40,6 +43,19 @@ export default function Config() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  const [categoriesPagination, setCategoriesPagination] = useState({
+    page: 1,
+    limit: 2,
+    total: 0,
+    search: "",
+  });
+  const [questionsPagination, setQuestionsPagination] = useState({
+    page: 1,
+    limit: 5,
+    total: 0,
+    search: "",
+  });
 
   // Form states
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -70,10 +86,15 @@ export default function Config() {
     if (selectedInterviewType) {
       const fetchCategories = async () => {
         try {
-          const newCategories = await getCategoriesByInterviewType(
-            selectedInterviewType
-          );
-          setCategories(newCategories);
+          const { data, total, page, limit } =
+            await getCategoriesByInterviewType(
+              selectedInterviewType,
+              categoriesPagination.page,
+              categoriesPagination.limit,
+              categoriesPagination.search
+            );
+          setCategories(data);
+          setCategoriesPagination((prev) => ({ ...prev, total, page, limit }));
           setSelectedCategory("");
           setQuestions([]);
         } catch (error) {
@@ -83,20 +104,51 @@ export default function Config() {
 
       fetchCategories();
     }
-  }, [selectedInterviewType]);
+  }, [
+    selectedInterviewType,
+    categoriesPagination.page,
+    categoriesPagination.search,
+  ]);
 
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const allQuestions = await fetchAllQuestions();
-        setAllQuestions(allQuestions);
+        const { data, total, page, limit } = await fetchAllQuestions(
+          questionsPagination.page,
+          questionsPagination.limit,
+          questionsPagination.search
+        );
+        setAllQuestions(data);
+        setQuestionsPagination((prev) => ({ ...prev, total, page, limit }));
       } catch (error) {
         console.error("Erro ao buscar perguntas:", error);
       }
     };
 
     fetchQuestions();
-  }, []);
+  }, [questionsPagination.page, questionsPagination.search]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      const fetchCategoryQuestions = async () => {
+        try {
+          const category = categories.find(
+            (cat) => cat.id === selectedCategory
+          );
+          if (category && category.questionIds) {
+            const categoryQuestions = allQuestions.filter((q) =>
+              category.questionIds.includes(q.id)
+            );
+            setQuestions(categoryQuestions);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar perguntas da categoria:", error);
+        }
+      };
+
+      fetchCategoryQuestions();
+    }
+  }, [selectedCategory, categories, allQuestions]);
 
   // Handlers
   const handleCreateCategory = async () => {
@@ -122,25 +174,18 @@ export default function Config() {
   };
 
   const handleRemoveCategory = async (categoryId: string) => {
-    if (questions.some((q) => q.categoryId === categoryId)) {
-      setFeedback({
-        type: "error",
-        message: "Não é possível remover categorias com perguntas vinculadas.",
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
+      await deleteCategory(categoryId);
       setCategories((prev) =>
         prev.filter((category) => category.id !== categoryId)
       );
       setFeedback({
         type: "success",
-        message: "Categoria removida com sucesso!",
+        message: "Categoria deletada com sucesso!",
       });
     } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao remover categoria" });
+      setFeedback({ type: "error", message: "Erro ao deletar categoria." });
     } finally {
       setIsLoading(false);
     }
@@ -198,8 +243,11 @@ export default function Config() {
   };
 
   const handleSaveQuestions = async () => {
+    if (!selectedCategory) return;
+
     setIsLoading(true);
     try {
+      await saveQuestions(selectedCategory, questions);
       setFeedback({
         type: "success",
         message: "Perguntas salvas com sucesso!",
@@ -211,7 +259,7 @@ export default function Config() {
     }
   };
 
-  const addExistingQuestion = (questionId: string) => {
+  const handleAddQuestionToCategory = (questionId: string) => {
     const existingQuestion = allQuestions.find((q) => q.id === questionId);
     if (existingQuestion && !questions.find((q) => q.id === questionId)) {
       const newQuestion = { ...existingQuestion, categoryId: selectedCategory };
@@ -220,6 +268,25 @@ export default function Config() {
         type: "success",
         message: "Pergunta adicionada à categoria!",
       });
+    }
+  };
+
+  const handleRemoveQuestionFromCategory = async (questionId: string) => {
+    setIsLoading(true);
+    try {
+      await removeQuestionFromCategory(selectedCategory, questionId);
+      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
+      setFeedback({
+        type: "success",
+        message: "Vínculo da pergunta removido com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: "Erro ao remover vínculo da pergunta.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -307,6 +374,19 @@ export default function Config() {
                       handleRemoveCategory={handleRemoveCategory}
                       questions={questions}
                       isLoading={isLoading}
+                      // pagination={{
+                      //   ...categoriesPagination,
+                      //   setPage: (page) =>
+                      //     setCategoriesPagination((prev) => ({
+                      //       ...prev,
+                      //       page: Number(page),
+                      //     })),
+                      //   setSearch: (search) =>
+                      //     setCategoriesPagination((prev) => ({
+                      //       ...prev,
+                      //       search: String(search),
+                      //     })),
+                      // }}
                     />
 
                     {/* Questions Management */}
@@ -326,8 +406,24 @@ export default function Config() {
                         handleUpdateQuestion={handleUpdateQuestion}
                         handleRemoveQuestion={handleRemoveQuestion}
                         handleSaveQuestions={handleSaveQuestions}
-                        addExistingQuestion={addExistingQuestion}
+                        addExistingQuestion={handleAddQuestionToCategory}
+                        handleRemoveQuestionFromCategory={
+                          handleRemoveQuestionFromCategory
+                        } // Corrigido aqui
                         isLoading={isLoading}
+                        pagination={{
+                          ...questionsPagination,
+                          setPage: (page) =>
+                            setQuestionsPagination((prev) => ({
+                              ...prev,
+                              page: Number(page),
+                            })),
+                          setSearch: (search) =>
+                            setQuestionsPagination((prev) => ({
+                              ...prev,
+                              search: String(search),
+                            })),
+                        }}
                       />
                     )}
                   </TabsContent>

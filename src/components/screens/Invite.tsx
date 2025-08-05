@@ -78,10 +78,10 @@ export default function Invite() {
     if (selectedInterviewType) {
       const fetchCategories = async () => {
         try {
-          const newCategories = await getCategoriesByInterviewType(
+          const response = await getCategoriesByInterviewType(
             selectedInterviewType
-          ); // Busca categorias do banco
-          setCategories(newCategories);
+          );
+          setCategories(response.data);
           setSelectedCategory("");
         } catch (error) {
           console.error("Erro ao buscar categorias:", error);

@@ -135,11 +135,14 @@ async function getInterviewTypes(): Promise<InterviewType[]> {
 }
 
 async function getCategoriesByInterviewType(
-  interviewTypeId: string
-): Promise<Category[]> {
+  interviewTypeId: string,
+  page: number = 1,
+  limit: number = 10,
+  search: string = ""
+): Promise<{ data: Category[]; total: number; page: number; limit: number }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/categories?interviewTypeId=${interviewTypeId}`
+      `${API_BASE_URL}/categories?interviewTypeId=${interviewTypeId}&page=${page}&limit=${limit}&search=${search}`
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar categorias por tipo de entrevista.");
@@ -151,10 +154,15 @@ async function getCategoriesByInterviewType(
   }
 }
 
-async function getQuestionsByCategory(categoryId: string): Promise<Question[]> {
+async function getQuestionsByCategory(
+  categoryId: string,
+  page: number = 1,
+  limit: number = 10,
+  search: string = ""
+): Promise<{ data: Question[]; total: number; page: number; limit: number }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/questions?categoryId=${categoryId}`
+      `${API_BASE_URL}/questions?categoryId=${categoryId}&page=${page}&limit=${limit}&search=${search}`
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar perguntas por categoria.");
@@ -166,9 +174,15 @@ async function getQuestionsByCategory(categoryId: string): Promise<Question[]> {
   }
 }
 
-async function fetchAllQuestions(): Promise<Question[]> {
+async function fetchAllQuestions(
+  page: number = 1,
+  limit: number = 10,
+  search: string = ""
+): Promise<{ data: Question[]; total: number; page: number; limit: number }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/questions/all`);
+    const response = await fetch(
+      `${API_BASE_URL}/questions/all?page=${page}&limit=${limit}&search=${search}`
+    );
     if (!response.ok) {
       throw new Error("Erro ao buscar todas as perguntas.");
     }
@@ -284,16 +298,34 @@ async function completeSession(sessionId: string): Promise<void> {
   }
 }
 
-async function fetchCompletedSessions(
-  startDate?: string,
-  endDate?: string,
-  columns?: string[]
-): Promise<SessionSummary[]> {
+async function fetchCompletedSessions({
+  page = 1,
+  limit = 10,
+  startDate,
+  endDate,
+  sortBy = "completedAt",
+  sortOrder = "desc",
+}: {
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}): Promise<{
+  data: SessionSummary[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
   try {
     const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
     if (startDate) queryParams.append("startDate", startDate);
     if (endDate) queryParams.append("endDate", endDate);
-    if (columns) queryParams.append("columns", columns.join(","));
+    queryParams.append("sortBy", sortBy);
+    queryParams.append("sortOrder", sortOrder);
 
     const response = await fetch(
       `${API_BASE_URL}/sessions/completed?${queryParams.toString()}`
@@ -452,6 +484,65 @@ async function sendInvitationEmail(
   }
 }
 
+async function saveQuestions(
+  categoryId: string,
+  questions: Question[]
+): Promise<void> {
+  try {
+    const questionIds = questions.map((q) => q.id); // Extraindo apenas os IDs das perguntas
+    const response = await fetch(
+      `${API_BASE_URL}/categories/${categoryId}/questions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ questionIds }), // Enviando os IDs no formato correto
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao salvar perguntas.");
+    }
+  } catch (error) {
+    console.error("Erro em saveQuestions:", error);
+    throw error;
+  }
+}
+
+async function removeQuestionFromCategory(
+  categoryId: string,
+  questionId: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/categories/${categoryId}/questions/${questionId}`,
+      {
+        method: "DELETE",
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Erro ao remover vínculo da pergunta com a categoria.");
+    }
+  } catch (error) {
+    console.error("Erro em removeQuestionFromCategory:", error);
+    throw error;
+  }
+}
+
+async function deleteCategory(categoryId: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/categories/${categoryId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error("Erro ao deletar categoria.");
+    }
+  } catch (error) {
+    console.error("Erro em deleteCategory:", error);
+    throw error;
+  }
+}
+
 export {
   fetchInvitationById,
   createSession,
@@ -474,4 +565,7 @@ export {
   addQuestionToCategory,
   reEvaluateSession,
   sendInvitationEmail,
+  saveQuestions,
+  removeQuestionFromCategory,
+  deleteCategory,
 };

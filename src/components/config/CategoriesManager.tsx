@@ -5,6 +5,27 @@ import { Input } from "@/components/ui/input";
 import { Trash2, Loader2, Plus } from "lucide-react";
 import { Category, Question } from "@/types/types";
 
+interface CategoriesManagerProps {
+  categories: Category[];
+  setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
+  selectedCategory: string;
+  setSelectedCategory: React.Dispatch<React.SetStateAction<string>>;
+  newCategoryName: string;
+  setNewCategoryName: React.Dispatch<React.SetStateAction<string>>;
+  handleCreateCategory: () => void;
+  handleRemoveCategory: (categoryId: string) => void;
+  questions: Question[];
+  isLoading: boolean;
+//   pagination: {
+//     page: number;
+//     limit: number;
+//     total: number;
+//     search: string;
+//     setPage: React.Dispatch<React.SetStateAction<number>>;
+//     setSearch: React.Dispatch<React.SetStateAction<string>>;
+//   };
+}
+
 export function CategoriesManager({
   categories,
   setCategories,
@@ -16,9 +37,14 @@ export function CategoriesManager({
   handleRemoveCategory,
   questions,
   isLoading,
-}: any) {
+//   pagination,
+}: CategoriesManagerProps) {
+//   const { page, limit, total, search, setPage, setSearch } = pagination;
+
+  console.log("questions", questions);
   return (
     <div className="space-y-6">
+
       {/* Create Category */}
       <Card className="bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600">
         <CardHeader>
@@ -59,7 +85,7 @@ export function CategoriesManager({
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 gap-4">
-              {categories.map((category: any) => (
+              {categories.map((category: Category) => (
                 <div
                   key={category.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -75,12 +101,7 @@ export function CategoriesManager({
                         {category.name}
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                        {
-                          questions.filter(
-                            (q: any) => q.categoryId === category.id
-                          ).length
-                        }{" "}
-                        perguntas
+                        {category?.questionCount || 0} perguntas
                       </p>
                     </div>
                     <Button
@@ -88,7 +109,7 @@ export function CategoriesManager({
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRemoveCategory(category.id);
+                        handleRemoveCategory(category.id); // Atualizado para usar a função correta
                       }}
                       className="border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                     >
@@ -101,6 +122,7 @@ export function CategoriesManager({
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 }
