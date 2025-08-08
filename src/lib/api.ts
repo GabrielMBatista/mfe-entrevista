@@ -420,13 +420,21 @@ async function addQuestionToCategory(
       `${API_BASE_URL}/categories/${categoryId}/questions`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ questionId }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIds: [questionId] }),
       }
     );
+
     if (!response.ok) {
+      // trata duplicidade como sucesso idempotente
+      if (response.status === 409) return;
+      let msg = "";
+      try {
+        const data = await response.json();
+        msg = data?.message || "";
+      } catch {}
+      if (/already|exist|duplic/i.test(msg)) return;
+
       throw new Error("Erro ao adicionar pergunta à categoria.");
     }
   } catch (error) {
@@ -489,7 +497,11 @@ async function saveQuestions(
   questions: Question[]
 ): Promise<void> {
   try {
-    const questionIds = questions.map((q) => q.id); // Extraindo apenas os IDs das perguntas
+    const questionIds = questions.map((q) => q.id);
+    // Evita chamar a API com array vazio (o backend rejeita)
+    if (!questionIds.length) {
+      return;
+    }
     const response = await fetch(
       `${API_BASE_URL}/categories/${categoryId}/questions`,
       {
@@ -497,7 +509,7 @@ async function saveQuestions(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ questionIds }), // Enviando os IDs no formato correto
+        body: JSON.stringify({ questionIds }),
       }
     );
     if (!response.ok) {

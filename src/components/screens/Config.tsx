@@ -1,294 +1,515 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import QuestionModal from "@/components/config/QuestionModal";
+import CategoriesManager from "@/components/config/CategoriesManager";
+import { Settings, Users, Code } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Header from "../ui/Header";
 import { useGoogleFont } from "@/utils/fonts";
-import { CheckCircle, AlertCircle } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-
-import Header from "@/components/ui/Header";
 import {
   getInterviewTypes,
   getCategoriesByInterviewType,
+  createCategory as apiCreateCategory,
+  deleteCategory as apiDeleteCategory,
+  addQuestionToCategory as apiAddQuestionToCategory,
+  removeQuestionFromCategory as apiRemoveQuestionFromCategory,
+  saveQuestions as apiSaveQuestions,
+  createQuestion as apiCreateQuestion,
+  updateQuestion as apiUpdateQuestion,
   fetchAllQuestions,
-  createCategory,
-  createQuestion,
-  updateQuestion,
-  saveQuestions,
-  removeQuestionFromCategory,
-  deleteCategory,
+  getQuestionsByCategory, // ADICIONE
 } from "@/lib/api";
-import { QuestionsManager } from "@/components/config/QuestionsManager";
-import { CategoriesManager } from "@/components/config/CategoriesManager";
-import { InterviewType, Category, Question, NewQuestion } from "@/types/types";
+import type {
+  InterviewType as BaseInterviewType,
+  Category,
+  Question,
+} from "@/types/types";
 
-export default function Config() {
+type UIInterviewType = BaseInterviewType & {
+  icon: React.ReactNode;
+  color: string;
+  categoryCount: number;
+};
+
+const addAlert = (
+  type: "success" | "error" | "info" | "warning",
+  message: string
+) => {
+  const opts = {
+    position: "top-right" as const,
+    autoClose: 5000,
+    hideProgressBar: false,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    theme: "colored" as const,
+  };
+  if (type === "success") return toast.success(message, opts);
+  if (type === "error") return toast.error(message, opts);
+  if (type === "warning") return toast.warning(message, opts);
+  return toast.info(message, opts);
+};
+
+export default function InterviewManagement() {
   const fontFamily = useGoogleFont("Inter");
-  const [interviewTypes, setInterviewTypes] = useState<InterviewType[]>([]);
+  const [interviewTypes, setInterviewTypes] = useState<UIInterviewType[]>([]);
   const [selectedInterviewType, setSelectedInterviewType] =
     useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  const [categoriesPagination, setCategoriesPagination] = useState({
-    page: 1,
-    limit: 2,
-    total: 0,
-    search: "",
-  });
-  const [questionsPagination, setQuestionsPagination] = useState({
-    page: 1,
-    limit: 5,
-    total: 0,
-    search: "",
-  });
-
-  // Form states
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newQuestion, setNewQuestion] = useState<NewQuestion>({
-    content: "",
-    technologies: "",
-    difficulty: "medium",
-  });
-  const [editingQuestion, setEditingQuestion] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
-  // Effects
   useEffect(() => {
-    const fetchInterviewTypes = async () => {
+    const fetchTypes = async () => {
       try {
+        setIsLoading(true);
         const types = await getInterviewTypes();
-        setInterviewTypes(types);
-        setCategories([]);
-      } catch (error) {
-        console.error("Erro ao buscar tipos de entrevista:", error);
+        const mapped = types.map((t) => {
+          const name = (t.name || "").toLowerCase();
+          const icon = name.includes("front") ? (
+            <Code className="h-4 w-4" />
+          ) : name.includes("back") ? (
+            <Settings className="h-4 w-4" />
+          ) : (
+            <Users className="h-4 w-4" />
+          );
+          const color = name.includes("front")
+            ? "blue"
+            : name.includes("back")
+              ? "green"
+              : "purple";
+          return {
+            ...t,
+            icon,
+            color,
+            categoryCount: 0,
+          } as UIInterviewType;
+        });
+        setInterviewTypes(mapped);
+        if (!selectedInterviewType && mapped[0]) {
+          setSelectedInterviewType(mapped[0].id);
+        }
+      } catch (e) {
+        addAlert("error", "Erro ao carregar tipos de entrevista.");
+      } finally {
+        setIsLoading(false);
       }
     };
-
-    fetchInterviewTypes();
+    fetchTypes();
   }, []);
 
   useEffect(() => {
-    if (selectedInterviewType) {
-      const fetchCategories = async () => {
-        try {
-          const { data, total, page, limit } =
-            await getCategoriesByInterviewType(
-              selectedInterviewType,
-              categoriesPagination.page,
-              categoriesPagination.limit,
-              categoriesPagination.search
-            );
-          setCategories(data);
-          setCategoriesPagination((prev) => ({ ...prev, total, page, limit }));
-          setSelectedCategory("");
-          setQuestions([]);
-        } catch (error) {
-          console.error("Erro ao buscar categorias:", error);
-        }
-      };
-
-      fetchCategories();
-    }
-  }, [
-    selectedInterviewType,
-    categoriesPagination.page,
-    categoriesPagination.search,
-  ]);
+    const fetchCategories = async () => {
+      if (!selectedInterviewType) return;
+      try {
+        setIsLoading(true);
+        const { data, total } = await getCategoriesByInterviewType(
+          selectedInterviewType,
+          1,
+          50,
+          ""
+        );
+        setCategories(data);
+        setSelectedCategory(null);
+        setInterviewTypes((prev) =>
+          prev.map((t) =>
+            t.id === selectedInterviewType ? { ...t, categoryCount: total } : t
+          )
+        );
+      } catch (e) {
+        addAlert("error", "Erro ao carregar categorias.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCategories();
+  }, [selectedInterviewType]);
 
   useEffect(() => {
     const fetchQuestions = async () => {
+      if (!selectedCategory) {
+        setQuestions([]);
+        return;
+      }
       try {
-        const { data, total, page, limit } = await fetchAllQuestions(
-          questionsPagination.page,
-          questionsPagination.limit,
-          questionsPagination.search
+        setIsLoading(true);
+
+        // Busca TODAS as perguntas (para poder adicionar/remover da categoria)
+        const { data: all } = await fetchAllQuestions(1, 200, "");
+
+        // Busca as perguntas já VINCULADAS à categoria selecionada
+        const { data: inCat } = await getQuestionsByCategory(
+          selectedCategory,
+          1,
+          200,
+          ""
         );
-        setAllQuestions(data);
-        setQuestionsPagination((prev) => ({ ...prev, total, page, limit }));
-      } catch (error) {
-        console.error("Erro ao buscar perguntas:", error);
+        const inCatIds = new Set(inCat.map((q: any) => q.id));
+
+        // Normaliza todas e marca membership na categoria atual
+        const normalizedAll = all.map((q: any) => ({
+          id: q.id,
+          text: q.text ?? q.content ?? "",
+          content: q.content ?? q.text ?? "",
+          technologies: q.technologies ?? "",
+          difficulty: q.difficulty ?? "medium",
+          status: q.status,
+          // força o vínculo conforme a API da categoria selecionada
+          categoryId: inCatIds.has(q.id) ? selectedCategory : q.categoryId,
+          createdAt: q.createdAt ?? new Date().toISOString(),
+          lastModified: q.lastModified,
+          updatedAt: q.updatedAt ?? q.lastModified ?? new Date().toISOString(),
+        })) as Question[];
+
+        setQuestions(normalizedAll);
+
+        // Garante que o contador da categoria selecionada reflita a API
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === selectedCategory
+              ? { ...c, questionCount: inCat.length }
+              : c
+          )
+        );
+      } catch (e) {
+        addAlert("error", "Erro ao carregar perguntas.");
+      } finally {
+        setIsLoading(false);
       }
     };
-
     fetchQuestions();
-  }, [questionsPagination.page, questionsPagination.search]);
+  }, [selectedCategory]);
 
-  useEffect(() => {
-    if (selectedCategory) {
-      const fetchCategoryQuestions = async () => {
-        try {
-          const category = categories.find(
-            (cat) => cat.id === selectedCategory
-          );
-          if (category && category.questionIds) {
-            const categoryQuestions = allQuestions.filter((q) =>
-              category.questionIds.includes(q.id)
-            );
-            setQuestions(categoryQuestions);
-          }
-        } catch (error) {
-          console.error("Erro ao buscar perguntas da categoria:", error);
-        }
-      };
-
-      fetchCategoryQuestions();
-    }
-  }, [selectedCategory, categories, allQuestions]);
-
-  // Handlers
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim() || !selectedInterviewType) return;
-
-    setIsLoading(true);
     try {
-      const newCategory = await createCategory(
+      setIsLoading(true);
+      const created = await apiCreateCategory(
         selectedInterviewType,
-        newCategoryName
+        newCategoryName.trim()
       );
-      setCategories((prev) => [...prev, newCategory]);
       setNewCategoryName("");
-      setFeedback({
-        type: "success",
-        message: "Categoria criada com sucesso!",
-      });
-    } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao criar categoria" });
+      const { data, total } = await getCategoriesByInterviewType(
+        selectedInterviewType,
+        1,
+        50,
+        ""
+      );
+      setCategories(data);
+      setInterviewTypes((prev) =>
+        prev.map((t) =>
+          t.id === selectedInterviewType ? { ...t, categoryCount: total } : t
+        )
+      );
+      setHasUnsavedChanges(true);
+      addAlert("success", `Categoria "${created.name}" criada com sucesso!`);
+    } catch (e) {
+      addAlert("error", "Erro ao criar categoria.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRemoveCategory = async (categoryId: string) => {
-    setIsLoading(true);
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category || !selectedInterviewType) return;
     try {
-      await deleteCategory(categoryId);
-      setCategories((prev) =>
-        prev.filter((category) => category.id !== categoryId)
+      setIsLoading(true);
+      await apiDeleteCategory(categoryId);
+      const { data, total } = await getCategoriesByInterviewType(
+        selectedInterviewType,
+        1,
+        50,
+        ""
       );
-      setFeedback({
-        type: "success",
-        message: "Categoria deletada com sucesso!",
-      });
-    } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao deletar categoria." });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateQuestion = async () => {
-    if (!newQuestion.content.trim() || !selectedCategory) return;
-
-    setIsLoading(true);
-    try {
-      const questionData = {
-        text: newQuestion.content,
-        technologies: newQuestion.technologies,
-        order: questions.length + 1,
-        categoryId: selectedCategory,
-      };
-      const createdQuestion = await createQuestion(questionData);
-      setQuestions((prev) => [...prev, createdQuestion]);
-      setNewQuestion({ content: "", technologies: "", difficulty: "medium" });
-      setFeedback({ type: "success", message: "Pergunta criada com sucesso!" });
-    } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao criar pergunta" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdateQuestion = async (questionId: string) => {
-    if (!editContent.trim()) return;
-
-    setIsLoading(true);
-    try {
-      await updateQuestion({ id: questionId, content: editContent });
-      setQuestions((prev) =>
-        prev.map((q) =>
-          q.id === questionId ? { ...q, content: editContent } : q
+      setCategories(data);
+      setInterviewTypes((prev) =>
+        prev.map((t) =>
+          t.id === selectedInterviewType ? { ...t, categoryCount: total } : t
         )
       );
-      setEditingQuestion(null);
-      setEditContent("");
-      setFeedback({
-        type: "success",
-        message: "Pergunta atualizada com sucesso!",
-      });
-    } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao atualizar pergunta" });
+      if (selectedCategory === categoryId) {
+        setSelectedCategory(null);
+        setQuestions([]);
+      }
+      setHasUnsavedChanges(true);
+      addAlert("info", `Categoria "${category.name}" removida`);
+    } catch (e) {
+      addAlert("error", "Erro ao remover categoria.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRemoveQuestion = (questionId: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== questionId));
-    setFeedback({ type: "success", message: "Pergunta removida localmente" });
-  };
-
-  const handleSaveQuestions = async () => {
-    if (!selectedCategory) return;
-
-    setIsLoading(true);
+  const handleSaveQuestion = async (
+    questionData: Omit<Question, "id" | "createdAt" | "lastModified"> & {
+      difficulty: "easy" | "medium" | "hard";
+    }
+  ) => {
+    if (!selectedCategory) {
+      addAlert(
+        "warning",
+        "Selecione uma categoria antes de salvar a pergunta."
+      );
+      return;
+    }
     try {
-      await saveQuestions(selectedCategory, questions);
-      setFeedback({
-        type: "success",
-        message: "Perguntas salvas com sucesso!",
-      });
-    } catch (error) {
-      setFeedback({ type: "error", message: "Erro ao salvar perguntas" });
+      setIsLoading(true);
+      if (editingQuestion) {
+        await apiUpdateQuestion({
+          id: editingQuestion.id,
+          content:
+            questionData.content ||
+            questionData.text ||
+            editingQuestion.content ||
+            editingQuestion.text ||
+            "",
+          technologies: questionData.technologies,
+          order: 0,
+        });
+        addAlert("success", "Pergunta atualizada com sucesso!");
+      } else {
+        await apiCreateQuestion({
+          text: questionData.content || questionData.text || "",
+          technologies: questionData.technologies,
+          order: 0,
+          categoryId: selectedCategory,
+        });
+        addAlert("success", "Nova pergunta criada com sucesso!");
+      }
+
+      const { data } = await fetchAllQuestions(1, 200, "");
+      const normalized = data.map((q: any) => ({
+        id: q.id,
+        text: q.text ?? q.content ?? "",
+        content: q.content ?? q.text ?? "",
+        technologies: q.technologies ?? "",
+        difficulty: q.difficulty ?? "medium",
+        status: q.status,
+        categoryId: q.categoryId,
+        createdAt: q.createdAt ?? new Date().toISOString(),
+        lastModified: q.lastModified,
+        updatedAt: q.updatedAt ?? q.lastModified ?? new Date().toISOString(),
+      })) as Question[];
+      setQuestions(normalized);
+
+      const countInSelected = normalized.filter(
+        (q) => q.categoryId === selectedCategory
+      ).length;
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === selectedCategory
+            ? { ...c, questionCount: countInSelected }
+            : c
+        )
+      );
+
+      setIsQuestionModalOpen(false);
+      setEditingQuestion(null);
+      setHasUnsavedChanges(true);
+    } catch (e) {
+      addAlert("error", "Erro ao salvar pergunta.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddQuestionToCategory = (questionId: string) => {
-    const existingQuestion = allQuestions.find((q) => q.id === questionId);
-    if (existingQuestion && !questions.find((q) => q.id === questionId)) {
-      const newQuestion = { ...existingQuestion, categoryId: selectedCategory };
-      setQuestions((prev) => [...prev, newQuestion]);
-      setFeedback({
-        type: "success",
-        message: "Pergunta adicionada à categoria!",
+  const handleSaveAll = async () => {
+    if (!selectedCategory) {
+      addAlert("info", "Nenhuma categoria selecionada.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const payload = questions.filter(
+        (q) => q.categoryId === selectedCategory
+      );
+      if (payload.length === 0) {
+        setHasUnsavedChanges(false);
+        addAlert("info", "Nenhuma alteração para salvar nesta categoria.");
+        return;
+      }
+      await apiSaveQuestions(selectedCategory, payload);
+      setHasUnsavedChanges(false);
+      addAlert("success", "Todas as alterações foram salvas!");
+    } catch (e) {
+      addAlert("error", "Erro ao salvar alterações.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setHasUnsavedChanges(false);
+    addAlert("info", "Alterações descartadas");
+  };
+
+  const setCategoryQuestions = async (updatedCategoryQuestions: Question[]) => {
+    if (!selectedCategory) return;
+    try {
+      setIsLoading(true);
+      if (updatedCategoryQuestions.length === 0) {
+        const prevCategoryQuestions = questions.filter(
+          (q) => q.categoryId === selectedCategory
+        );
+        if (prevCategoryQuestions.length > 0) {
+          await Promise.all(
+            prevCategoryQuestions.map((q) =>
+              apiRemoveQuestionFromCategory(selectedCategory, q.id)
+            )
+          );
+        }
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.categoryId === selectedCategory
+              ? { ...q, categoryId: undefined }
+              : q
+          )
+        );
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === selectedCategory ? { ...c, questionCount: 0 } : c
+          )
+        );
+        setHasUnsavedChanges(true);
+        addAlert("success", "Todas as perguntas foram removidas da categoria.");
+        return;
+      }
+
+      await apiSaveQuestions(selectedCategory, updatedCategoryQuestions);
+      setQuestions((prev) => {
+        const others = prev.filter((q) => q.categoryId !== selectedCategory);
+        return [...others, ...updatedCategoryQuestions];
       });
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === selectedCategory
+            ? { ...c, questionCount: updatedCategoryQuestions.length }
+            : c
+        )
+      );
+      setHasUnsavedChanges(true);
+      addAlert("success", "Perguntas atualizadas.");
+    } catch (e) {
+      addAlert("error", "Erro ao atualizar perguntas da categoria.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleRemoveQuestionFromCategory = async (questionId: string) => {
-    setIsLoading(true);
+    if (!selectedCategory) return;
     try {
-      await removeQuestionFromCategory(selectedCategory, questionId);
-      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
-      setFeedback({
-        type: "success",
-        message: "Vínculo da pergunta removido com sucesso!",
-      });
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        message: "Erro ao remover vínculo da pergunta.",
-      });
+      setIsLoading(true);
+      await apiRemoveQuestionFromCategory(selectedCategory, questionId);
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId ? { ...q, categoryId: undefined } : q
+        )
+      );
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === selectedCategory
+            ? { ...c, questionCount: Math.max(0, c.questionCount - 1) }
+            : c
+        )
+      );
+      setHasUnsavedChanges(true);
+      addAlert("info", "Pergunta removida da categoria");
+    } catch (e) {
+      addAlert("error", "Erro ao remover pergunta da categoria.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleAddQuestionToCategory = async (questionId: string) => {
+    if (!selectedCategory) return;
+    try {
+      setIsLoading(true);
+      await apiAddQuestionToCategory(selectedCategory, questionId);
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId ? { ...q, categoryId: selectedCategory } : q
+        )
+      );
+      setCategories((prevCats) =>
+        prevCats.map((c) =>
+          c.id === selectedCategory
+            ? { ...c, questionCount: c.questionCount + 1 }
+            : c
+        )
+      );
+      setHasUnsavedChanges(true);
+      addAlert("success", "Pergunta adicionada à categoria!");
+    } catch (e) {
+      addAlert("error", "Erro ao adicionar pergunta à categoria.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleOpenModal = (event: CustomEvent) => {
+      const { question } = event.detail;
+      setEditingQuestion(question);
+      setIsQuestionModalOpen(true);
+    };
+
+    const handleAddQuestionToCategoryEvt = async (event: CustomEvent) => {
+      const { questionId } = event.detail;
+      await handleAddQuestionToCategory(questionId);
+    };
+
+    const handleRemoveQuestionFromCategoryEvt = async (event: CustomEvent) => {
+      const { questionId } = event.detail;
+      await handleRemoveQuestionFromCategory(questionId);
+    };
+
+    window.addEventListener("openQuestionModal", handleOpenModal as any);
+    window.addEventListener(
+      "addQuestionToCategory",
+      handleAddQuestionToCategoryEvt as any
+    );
+    window.addEventListener(
+      "removeQuestionFromCategory",
+      handleRemoveQuestionFromCategoryEvt as any
+    );
+
+    return () => {
+      window.removeEventListener("openQuestionModal", handleOpenModal as any);
+      window.removeEventListener(
+        "addQuestionToCategory",
+        handleAddQuestionToCategoryEvt as any
+      );
+      window.removeEventListener(
+        "removeQuestionFromCategory",
+        handleRemoveQuestionFromCategoryEvt as any
+      );
+    };
+  }, [selectedCategory, selectedInterviewType, questions]);
+
+  const currentInterviewType = interviewTypes.find(
+    (type) => type.id === selectedInterviewType
+  );
+  const selectedCategoryData = categories.find(
+    (c) => c.id === selectedCategory
+  );
+  const categoryQuestions = questions.filter(
+    (q) => q.categoryId === selectedCategory
+  );
+
+  const totalQuestions = questions.length;
+  const totalCategories = categories.length;
+  const activeQuestions = questions.filter((q) => q.status === "active").length;
 
   return (
     <div
@@ -298,139 +519,73 @@ export default function Config() {
       <Header showLinks={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
-          <div className="mb-8">
-            <p className="text-slate-600 dark:text-slate-300">
-              Administre tipos de entrevista, categorias e perguntas do sistema.
-            </p>
-          </div>
-
-          {feedback && (
-            <Alert
-              className={`${
-                feedback.type === "success"
-                  ? "border-green-200 bg-green-50 dark:bg-green-900/20"
-                  : "border-red-200 bg-red-50 dark:bg-red-900/20"
-              }`}
-            >
-              {feedback.type === "success" ? (
-                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-              )}
-              <AlertDescription
-                className={`${
-                  feedback.type === "success"
-                    ? "text-green-800 dark:text-green-200"
-                    : "text-red-800 dark:text-red-200"
-                }`}
-              >
-                {feedback.message}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-slate-800 dark:text-white">
-                Gerenciar Configurações
-              </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                Selecione um tipo de entrevista para gerenciar suas categorias e
-                perguntas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+            {/* Toasts flutuantes topo-direito, sempre visíveis */}
+            <ToastContainer
+              position="top-right"
+              newestOnTop
+              closeOnClick
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="colored"
+              autoClose={5000}
+            />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <Tabs
                 value={selectedInterviewType}
                 onValueChange={setSelectedInterviewType}
+                className="space-y-6 mb-6"
               >
-                <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700">
-                  {interviewTypes.map((type: InterviewType) => (
+                <TabsList className="grid w-full grid-cols-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 h-auto">
+                  {interviewTypes.map((type) => (
                     <TabsTrigger
                       key={type.id}
                       value={type.id}
-                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600"
+                      className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-slate-100 dark:data-[state=active]:bg-slate-700 rounded-lg transition-all"
                     >
-                      {type.name}
+                      <div className="flex items-center gap-2">
+                        {type.icon}
+                        <span className="font-medium">{type.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>{type.categoryCount} categorias</span>
+                      </div>
                     </TabsTrigger>
                   ))}
                 </TabsList>
-
-                {interviewTypes.map((type: InterviewType) => (
-                  <TabsContent
-                    key={type.id}
-                    value={type.id}
-                    className="mt-6 space-y-6"
-                  >
-                    {/* Categories Management */}
-                    <CategoriesManager
-                      categories={categories}
-                      setCategories={setCategories}
-                      selectedCategory={selectedCategory}
-                      setSelectedCategory={setSelectedCategory}
-                      newCategoryName={newCategoryName}
-                      setNewCategoryName={setNewCategoryName}
-                      handleCreateCategory={handleCreateCategory}
-                      handleRemoveCategory={handleRemoveCategory}
-                      questions={questions}
-                      isLoading={isLoading}
-                      // pagination={{
-                      //   ...categoriesPagination,
-                      //   setPage: (page) =>
-                      //     setCategoriesPagination((prev) => ({
-                      //       ...prev,
-                      //       page: Number(page),
-                      //     })),
-                      //   setSearch: (search) =>
-                      //     setCategoriesPagination((prev) => ({
-                      //       ...prev,
-                      //       search: String(search),
-                      //     })),
-                      // }}
-                    />
-
-                    {/* Questions Management */}
-                    {selectedCategory && (
-                      <QuestionsManager
-                        questions={questions}
-                        setQuestions={setQuestions}
-                        allQuestions={allQuestions}
-                        selectedCategory={selectedCategory}
-                        newQuestion={newQuestion}
-                        setNewQuestion={setNewQuestion}
-                        editingQuestion={editingQuestion}
-                        setEditingQuestion={setEditingQuestion}
-                        editContent={editContent}
-                        setEditContent={setEditContent}
-                        handleCreateQuestion={handleCreateQuestion}
-                        handleUpdateQuestion={handleUpdateQuestion}
-                        handleRemoveQuestion={handleRemoveQuestion}
-                        handleSaveQuestions={handleSaveQuestions}
-                        addExistingQuestion={handleAddQuestionToCategory}
-                        handleRemoveQuestionFromCategory={
-                          handleRemoveQuestionFromCategory
-                        } // Corrigido aqui
-                        isLoading={isLoading}
-                        pagination={{
-                          ...questionsPagination,
-                          setPage: (page) =>
-                            setQuestionsPagination((prev) => ({
-                              ...prev,
-                              page: Number(page),
-                            })),
-                          setSearch: (search) =>
-                            setQuestionsPagination((prev) => ({
-                              ...prev,
-                              search: String(search),
-                            })),
-                        }}
-                      />
-                    )}
-                  </TabsContent>
-                ))}
               </Tabs>
-            </CardContent>
-          </Card>
+
+              <CategoriesManager
+                categories={categories}
+                setCategories={setCategories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                newCategoryName={newCategoryName}
+                setNewCategoryName={setNewCategoryName}
+                handleCreateCategory={handleCreateCategory}
+                handleRemoveCategory={handleRemoveCategory}
+                questions={questions}
+                isLoading={isLoading}
+                onAddQuestionToCategory={handleAddQuestionToCategory}
+                onRemoveQuestionFromCategory={handleRemoveQuestionFromCategory}
+                setCategoryQuestions={setCategoryQuestions}
+                setQuestions={setQuestions}
+                handleSaveQuestions={handleSaveAll}
+              />
+            </div>
+            <QuestionModal
+              isOpen={isQuestionModalOpen}
+              onClose={() => {
+                setIsQuestionModalOpen(false);
+                setEditingQuestion(null);
+              }}
+              onSave={handleSaveQuestion}
+              question={editingQuestion}
+              categoryId={selectedCategory || undefined}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
       </main>
     </div>

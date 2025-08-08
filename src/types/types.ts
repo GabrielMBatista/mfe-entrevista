@@ -1,9 +1,15 @@
 export type Question = {
+  text: string;
+  difficulty: string;
   id: string;
   content: string;
   technologies: string; // String única, conforme o novo formato
   createdAt: string;
   updatedAt: string;
+  // Novos/compatíveis com UI
+  categoryId?: string;
+  status?: "active" | "draft" | "archived";
+  lastModified?: string;
 };
 
 export type Answer = {
