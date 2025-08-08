@@ -27,6 +27,7 @@ import type {
   Category,
   Question,
 } from "@/types/types";
+import Loader from "@/components/ui/loader";
 
 type UIInterviewType = BaseInterviewType & {
   icon: React.ReactNode;
@@ -514,8 +515,15 @@ export default function InterviewManagement() {
   return (
     <div
       style={{ fontFamily }}
-      className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+      className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 relative"
     >
+      {/* Overlay global de loading quando operações de dados acontecem */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+          <Loader message="Carregando..." />
+        </div>
+      )}
+
       <Header showLinks={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">

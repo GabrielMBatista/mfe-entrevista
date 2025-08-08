@@ -30,6 +30,7 @@ import {
   sendInvitation,
   sendInvitationEmail,
 } from "@/lib/api";
+import Loader from "@/components/ui/loader";
 
 type InterviewType = {
   id: string;
@@ -59,15 +60,20 @@ export default function Invite() {
   const [candidateEmail, setCandidateEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [loadingTypes, setLoadingTypes] = useState<boolean>(true);
+  const [loadingCategories, setLoadingCategories] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchInterviewTypes = async () => {
       try {
+        setLoadingTypes(true);
         const types = await getInterviewTypes(); // Busca os tipos de entrevista do banco
         setInterviewTypes(types); // Atualiza o estado com os tipos de entrevista
         setSelectedInterviewType(""); // Reseta o tipo selecionado
       } catch (error) {
         console.error("Erro ao buscar tipos de entrevista:", error);
+      } finally {
+        setLoadingTypes(false);
       }
     };
 
@@ -78,6 +84,7 @@ export default function Invite() {
     if (selectedInterviewType) {
       const fetchCategories = async () => {
         try {
+          setLoadingCategories(true);
           const response = await getCategoriesByInterviewType(
             selectedInterviewType
           );
@@ -85,10 +92,15 @@ export default function Invite() {
           setSelectedCategory("");
         } catch (error) {
           console.error("Erro ao buscar categorias:", error);
+        } finally {
+          setLoadingCategories(false);
         }
       };
 
       fetchCategories();
+    } else {
+      setCategories([]);
+      setSelectedCategory("");
     }
   }, [selectedInterviewType]);
 
@@ -192,69 +204,77 @@ export default function Invite() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs
-                value={selectedInterviewType}
-                onValueChange={setSelectedInterviewType}
-              >
-                <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700">
+              {loadingTypes ? (
+                <Loader message="Carregando tipos de entrevista..." />
+              ) : (
+                <Tabs
+                  value={selectedInterviewType}
+                  onValueChange={setSelectedInterviewType}
+                >
+                  <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700">
+                    {interviewTypes.map((type: InterviewType) => (
+                      <TabsTrigger
+                        key={type.id}
+                        value={type.id}
+                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white"
+                      >
+                        {type.name}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+
                   {interviewTypes.map((type: InterviewType) => (
-                    <TabsTrigger
-                      key={type.id}
-                      value={type.id}
-                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white"
-                    >
-                      {type.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
-                {interviewTypes.map((type: InterviewType) => (
-                  <TabsContent key={type.id} value={type.id} className="mt-6">
-                    <div className="space-y-4">
-                      <div className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                        <h3 className="font-medium text-slate-800 dark:text-white mb-2">
-                          {type.name}
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-300">
-                          {type.description}
-                        </p>
-                      </div>
-
-                      {categories.length > 0 && (
-                        <div>
-                          <Label className="text-slate-700 dark:text-slate-300 mb-3 block">
-                            Selecione uma categoria:
-                          </Label>
-                          <RadioGroup
-                            value={selectedCategory}
-                            onValueChange={setSelectedCategory}
-                          >
-                            <div className="grid md:grid-cols-2 gap-3">
-                              {categories.map((category) => (
-                                <div
-                                  key={category.id}
-                                  className="flex items-center space-x-2 p-3 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                                >
-                                  <RadioGroupItem
-                                    value={category.id}
-                                    id={category.id}
-                                  />
-                                  <Label
-                                    htmlFor={category.id}
-                                    className="text-slate-700 dark:text-slate-300 cursor-pointer flex-1"
-                                  >
-                                    {category.name}
-                                  </Label>
-                                </div>
-                              ))}
-                            </div>
-                          </RadioGroup>
+                    <TabsContent key={type.id} value={type.id} className="mt-6">
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                          <h3 className="font-medium text-slate-800 dark:text-white mb-2">
+                            {type.name}
+                          </h3>
+                          <p className="text-sm text-slate-600 dark:text-slate-300">
+                            {type.description}
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
+
+                        {loadingCategories ? (
+                          <Loader message="Carregando categorias..." />
+                        ) : (
+                          categories.length > 0 && (
+                            <div>
+                              <Label className="text-slate-700 dark:text-slate-300 mb-3 block">
+                                Selecione uma categoria:
+                              </Label>
+                              <RadioGroup
+                                value={selectedCategory}
+                                onValueChange={setSelectedCategory}
+                              >
+                                <div className="grid md:grid-cols-2 gap-3">
+                                  {categories.map((category) => (
+                                    <div
+                                      key={category.id}
+                                      className="flex items-center space-x-2 p-3 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                                    >
+                                      <RadioGroupItem
+                                        value={category.id}
+                                        id={category.id}
+                                      />
+                                      <Label
+                                        htmlFor={category.id}
+                                        className="text-slate-700 dark:text-slate-300 cursor-pointer flex-1"
+                                      >
+                                        {category.name}
+                                      </Label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </RadioGroup>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              )}
             </CardContent>
           </Card>
 

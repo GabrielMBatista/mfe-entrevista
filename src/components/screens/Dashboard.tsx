@@ -50,6 +50,7 @@ import {
 } from "chart.js";
 import { InterviewFilters } from "@/components/dashboard/InterviewFilters";
 import { useInterviewFilters } from "@/hooks/useInterviewFilters";
+import Loader from "@/components/ui/loader";
 
 // Registre os módulos necessários do Chart.js
 ChartJS.register(
@@ -98,6 +99,7 @@ export default function Dashboard() {
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [isLoading, setIsLoading] = useState(false);
   console.log("session.", sessions);
 
   const { filters, handleFilterChange } = useInterviewFilters({});
@@ -168,6 +170,7 @@ export default function Dashboard() {
     setSortConfig({ key, direction });
 
     try {
+      setIsLoading(true);
       const response = await fetchCompletedSessions({
         page: currentPage,
         limit: pageSize,
@@ -183,11 +186,14 @@ export default function Dashboard() {
       setCurrentPage(page);
     } catch (error) {
       console.error("Erro ao buscar sessões ordenadas:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchSessions = async () => {
     try {
+      setIsLoading(true);
       const response = await fetchCompletedSessions({
         page: currentPage,
         limit: pageSize,
@@ -204,6 +210,8 @@ export default function Dashboard() {
       setTotalPages(Math.ceil(total / limit));
     } catch (error) {
       console.error("Erro ao buscar sessões concluídas:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -311,6 +319,7 @@ export default function Dashboard() {
   const handleNextPage = async () => {
     if (currentPage < totalPages) {
       try {
+        setIsLoading(true);
         const response = await fetchCompletedSessions({
           page: currentPage + 1,
           limit: pageSize,
@@ -326,6 +335,8 @@ export default function Dashboard() {
         setCurrentPage(page);
       } catch (error) {
         console.error("Erro ao buscar próxima página:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -333,6 +344,7 @@ export default function Dashboard() {
   const handlePreviousPage = async () => {
     if (currentPage > 1) {
       try {
+        setIsLoading(true);
         const response = await fetchCompletedSessions({
           page: currentPage - 1,
           limit: pageSize,
@@ -348,6 +360,8 @@ export default function Dashboard() {
         setCurrentPage(page);
       } catch (error) {
         console.error("Erro ao buscar página anterior:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -404,437 +418,453 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Versão Mobile */}
-              <div className="block sm:hidden space-y-4 mt-4">
-                {sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-slate-800 dark:text-white text-sm">
-                        {session.candidateName}
-                      </h3>
-                      <span
-                        className={`text-xs font-semibold ${getScoreColor(session.score)}`}
+              {isLoading ? (
+                <Loader message="Carregando sessões..." />
+              ) : (
+                <>
+                  {/* Versão Mobile */}
+                  <div className="block sm:hidden space-y-4 mt-4">
+                    {sessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2"
                       >
-                        {session.score.toFixed(0)}/100
-                      </span>
-                    </div>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-slate-800 dark:text-white text-sm">
+                            {session.candidateName}
+                          </h3>
+                          <span
+                            className={`text-xs font-semibold ${getScoreColor(
+                              session.score
+                            )}`}
+                          >
+                            {session.score.toFixed(0)}/100
+                          </span>
+                        </div>
 
-                    <div className="text-xs text-slate-600 dark:text-slate-300">
-                      <Calendar className="w-3 h-3 inline-block mr-1" />
-                      {formatDate(session.completedAt)}
-                    </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-300">
+                          <Calendar className="w-3 h-3 inline-block mr-1" />
+                          {formatDate(session.completedAt)}
+                        </div>
 
-                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
-                      {session.category}
-                    </Badge>
+                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
+                          {session.category}
+                        </Badge>
 
-                    <Badge
-                      variant="outline"
-                      className="text-xs border-slate-300 dark:border-slate-600"
-                    >
-                      {session.interviewType}
-                    </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-slate-300 dark:border-slate-600"
+                        >
+                          {session.interviewType}
+                        </Badge>
 
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleRowExpansion(session.id);
-                        }}
-                        className="text-xs border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
-                      >
-                        {expandedRows.has(session.id) ? "Fechar" : "Expandir"}
-                      </Button>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleRowExpansion(session.id);
+                            }}
+                            className="text-xs border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+                          >
+                            {expandedRows.has(session.id)
+                              ? "Fechar"
+                              : "Expandir"}
+                          </Button>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleReEvaluateSession(session.id);
-                        }}
-                        className="text-xs border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
-                      >
-                        Reavaliar
-                      </Button>
-                    </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleReEvaluateSession(session.id);
+                            }}
+                            className="text-xs border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
+                          >
+                            Reavaliar
+                          </Button>
+                        </div>
 
-                    {expandedRows.has(session.id) && (
-                      <div className="mt-4 text-xs text-slate-600 dark:text-slate-300 space-y-4">
-                        {/* Relatório Completo */}
-                        {session.fullReport &&
-                          (() => {
-                            const report = parseFullReport(session.fullReport);
-                            return report ? (
+                        {expandedRows.has(session.id) && (
+                          <div className="mt-4 text-xs text-slate-600 dark:text-slate-300 space-y-4">
+                            {/* Relatório Completo */}
+                            {session.fullReport &&
+                              (() => {
+                                const report = parseFullReport(
+                                  session.fullReport
+                                );
+                                return report ? (
+                                  <div>
+                                    <p className="font-semibold text-slate-800 dark:text-white">
+                                      Relatório Completo:
+                                    </p>
+                                    <div className="space-y-2">
+                                      <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        <strong>Nível de Conhecimento:</strong>{" "}
+                                        {report.nivelDeConhecimento}
+                                      </p>
+                                      <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        <strong>Comunicação:</strong>{" "}
+                                        {report.comunicacao}
+                                      </p>
+                                      <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        <strong>Potencial:</strong>{" "}
+                                        {report.potencialDeCrescimento}
+                                      </p>
+                                      <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        <strong>Pontos Fortes:</strong>{" "}
+                                        {report.pontosFortes?.join(", ")}
+                                      </p>
+                                      <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        <strong>Pontos de Melhoria:</strong>{" "}
+                                        {report.pontosDeMelhoria?.join(", ")}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ) : null;
+                              })()}
+
+                            {/* Respostas */}
+                            {session.answers.length > 0 && (
                               <div>
                                 <p className="font-semibold text-slate-800 dark:text-white">
-                                  Relatório Completo:
+                                  Respostas:
                                 </p>
                                 <div className="space-y-2">
-                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    <strong>Nível de Conhecimento:</strong>{" "}
-                                    {report.nivelDeConhecimento}
-                                  </p>
-                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    <strong>Comunicação:</strong>{" "}
-                                    {report.comunicacao}
-                                  </p>
-                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    <strong>Potencial:</strong>{" "}
-                                    {report.potencialDeCrescimento}
-                                  </p>
-                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    <strong>Pontos Fortes:</strong>{" "}
-                                    {report.pontosFortes?.join(", ")}
-                                  </p>
-                                  <p className="break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    <strong>Pontos de Melhoria:</strong>{" "}
-                                    {report.pontosDeMelhoria?.join(", ")}
-                                  </p>
+                                  {session.answers.map((answer, index) => (
+                                    <div
+                                      key={index}
+                                      className="p-2 border border-slate-200 dark:border-slate-600 rounded-lg"
+                                    >
+                                      <p className="font-medium text-slate-800 dark:text-white break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        {answer.question}
+                                      </p>
+                                      <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                        {answer.response}
+                                      </p>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            ) : null;
-                          })()}
+                            )}
 
-                        {/* Respostas */}
-                        {session.answers.length > 0 && (
-                          <div>
-                            <p className="font-semibold text-slate-800 dark:text-white">
-                              Respostas:
-                            </p>
-                            <div className="space-y-2">
-                              {session.answers.map((answer, index) => (
-                                <div
-                                  key={index}
-                                  className="p-2 border border-slate-200 dark:border-slate-600 rounded-lg"
-                                >
-                                  <p className="font-medium text-slate-800 dark:text-white break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    {answer.question}
-                                  </p>
-                                  <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                    {answer.response}
-                                  </p>
-                                </div>
-                              ))}
+                            {/* Resumo */}
+                            <div>
+                              <p className="font-semibold text-slate-800 dark:text-white">
+                                Resumo Para o usuario:
+                              </p>
+                              <p className="whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                {session.summary}
+                              </p>
                             </div>
                           </div>
                         )}
-
-                        {/* Resumo */}
-                        <div>
-                          <p className="font-semibold text-slate-800 dark:text-white">
-                            Resumo Para o usuario:
-                          </p>
-                          <p className="whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
-                            {session.summary}
-                          </p>
-                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Paginação Mobile */}
-              <div className="sm:hidden">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onNext={handleNextPage}
-                  onPrevious={handlePreviousPage}
-                />
-              </div>
+                  {/* Paginação Mobile */}
+                  <div className="sm:hidden">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onNext={handleNextPage}
+                      onPrevious={handlePreviousPage}
+                    />
+                  </div>
 
-              {/* Versão Desktop */}
-              <Table className="hidden sm:table">
-                <TableHeader>
-                  <TableRow className="border-slate-200 dark:border-slate-700">
-                    <TableHead
-                      onClick={() => handleSort("candidateName")}
-                      className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                    >
-                      Candidato{" "}
-                      {sortConfig?.key === "candidateName" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("score")}
-                      className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                    >
-                      Pontuação{" "}
-                      {sortConfig?.key === "score" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("completedAt")}
-                      className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                    >
-                      Data{" "}
-                      {sortConfig?.key === "completedAt" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("category")}
-                      className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                    >
-                      Categoria{" "}
-                      {sortConfig?.key === "category" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("interviewType")}
-                      className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                    >
-                      Tipo de Entrevista{" "}
-                      {sortConfig?.key === "interviewType" &&
-                        (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableHead>
-                    <TableHead className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm">
-                      Ações
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessions.map((session) => (
-                    <React.Fragment key={session.id}>
-                      <TableRow className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-xs sm:text-sm">
-                        <TableCell className="font-medium text-slate-800 dark:text-white">
-                          <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                            <span>{session.candidateName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <span
-                              className={`font-semibold ${getScoreColor(session.score)}`}
-                            >
-                              {session.score.toFixed(0)}/100
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                            <span>{formatDate(session.completedAt)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs sm:text-sm"
-                          >
-                            <Tag className="w-3 h-3 mr-1" />
-                            {session.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
-                          >
-                            {session.interviewType}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleRowExpansion(session.id);
-                              }}
-                              className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm"
-                            >
-                              {expandedRows.has(session.id) ? (
-                                <>
-                                  <ChevronUp className="w-4 h-4 mr-1" />
-                                  Fechar
-                                </>
-                              ) : (
-                                <>
-                                  <ChevronDown className="w-4 h-4 mr-1" />
-                                  Expandir
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleReEvaluateSession(session.id);
-                              }}
-                              className="border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs sm:text-sm"
-                            >
-                              <RefreshCw className="w-4 h-4 mr-1" />
-                              Reavaliar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-
-                      {expandedRows.has(session.id) && (
-                        <TableRow
-                          key={`${session.id}-expanded`}
-                          className="border-slate-200 dark:border-slate-700"
+                  {/* Versão Desktop */}
+                  <Table className="hidden sm:table">
+                    <TableHeader>
+                      <TableRow className="border-slate-200 dark:border-slate-700">
+                        <TableHead
+                          onClick={() => handleSort("candidateName")}
+                          className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
                         >
-                          <TableCell
-                            colSpan={6}
-                            className="bg-slate-50 dark:bg-slate-800/50 p-4 text-xs sm:text-sm"
-                          >
-                            <div className="p-4 space-y-6">
-                              {/* Relatório Completo */}
-                              {session.fullReport &&
-                                (() => {
-                                  const report = parseFullReport(
-                                    session.fullReport
-                                  );
-                                  return report ? (
-                                    <div>
-                                      <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
-                                        <FileText className="w-4 h-4 mr-2" />
-                                        Relatório Completo
-                                      </h4>
-                                      <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
-                                          <h5 className="font-medium text-slate-800 dark:text-white mb-2">
-                                            Avaliação Geral
-                                          </h5>
-                                          <div className="space-y-2 text-sm">
-                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                              <strong>
-                                                Nível de Conhecimento:
-                                              </strong>{" "}
-                                              {report.nivelDeConhecimento}
-                                            </p>
-                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                              <strong>Comunicação:</strong>{" "}
-                                              {report.comunicacao}
-                                            </p>
-                                            <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                              <strong>Potencial:</strong>{" "}
-                                              {report.potencialDeCrescimento}
-                                            </p>
+                          Candidato{" "}
+                          {sortConfig?.key === "candidateName" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead
+                          onClick={() => handleSort("score")}
+                          className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                        >
+                          Pontuação{" "}
+                          {sortConfig?.key === "score" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead
+                          onClick={() => handleSort("completedAt")}
+                          className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                        >
+                          Data{" "}
+                          {sortConfig?.key === "completedAt" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead
+                          onClick={() => handleSort("category")}
+                          className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                        >
+                          Categoria{" "}
+                          {sortConfig?.key === "category" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead
+                          onClick={() => handleSort("interviewType")}
+                          className="cursor-pointer text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                        >
+                          Tipo de Entrevista{" "}
+                          {sortConfig?.key === "interviewType" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </TableHead>
+                        <TableHead className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm">
+                          Ações
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sessions.map((session) => (
+                        <React.Fragment key={session.id}>
+                          <TableRow className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-xs sm:text-sm">
+                            <TableCell className="font-medium text-slate-800 dark:text-white">
+                              <div className="flex items-center space-x-2">
+                                <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                <span>{session.candidateName}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span
+                                  className={`font-semibold ${getScoreColor(
+                                    session.score
+                                  )}`}
+                                >
+                                  {session.score.toFixed(0)}/100
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-300">
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                <span>{formatDate(session.completedAt)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs sm:text-sm"
+                              >
+                                <Tag className="w-3 h-3 mr-1" />
+                                {session.category}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                              >
+                                {session.interviewType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleRowExpansion(session.id);
+                                  }}
+                                  className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm"
+                                >
+                                  {expandedRows.has(session.id) ? (
+                                    <>
+                                      <ChevronUp className="w-4 h-4 mr-1" />
+                                      Fechar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="w-4 h-4 mr-1" />
+                                      Expandir
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleReEvaluateSession(session.id);
+                                  }}
+                                  className="border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs sm:text-sm"
+                                >
+                                  <RefreshCw className="w-4 h-4 mr-1" />
+                                  Reavaliar
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {expandedRows.has(session.id) && (
+                            <TableRow
+                              key={`${session.id}-expanded`}
+                              className="border-slate-200 dark:border-slate-700"
+                            >
+                              <TableCell
+                                colSpan={6}
+                                className="bg-slate-50 dark:bg-slate-800/50 p-4 text-xs sm:text-sm"
+                              >
+                                <div className="p-4 space-y-6">
+                                  {/* Relatório Completo */}
+                                  {session.fullReport &&
+                                    (() => {
+                                      const report = parseFullReport(
+                                        session.fullReport
+                                      );
+                                      return report ? (
+                                        <div>
+                                          <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
+                                            <FileText className="w-4 h-4 mr-2" />
+                                            Relatório Completo
+                                          </h4>
+                                          <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+                                              <h5 className="font-medium text-slate-800 dark:text-white mb-2">
+                                                Avaliação Geral
+                                              </h5>
+                                              <div className="space-y-2 text-sm">
+                                                <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                                  <strong>
+                                                    Nível de Conhecimento:
+                                                  </strong>{" "}
+                                                  {report.nivelDeConhecimento}
+                                                </p>
+                                                <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                                  <strong>Comunicação:</strong>{" "}
+                                                  {report.comunicacao}
+                                                </p>
+                                                <p className="text-slate-600 dark:text-slate-300 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                                  <strong>Potencial:</strong>{" "}
+                                                  {report.potencialDeCrescimento}
+                                                </p>
+                                              </div>
+                                            </div>
+
+                                            <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+                                              <h5 className="font-medium text-slate-800 dark:text-white mb-2">
+                                                Pontos Fortes
+                                              </h5>
+                                              <div className="flex flex-wrap gap-1 max-w-full">
+                                                {report.pontosFortes?.map(
+                                                  (
+                                                    ponto: string,
+                                                    index: number
+                                                  ) => (
+                                                    <Badge
+                                                      key={index}
+                                                      className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs break-words word-wrap text-wrap hyphens-auto max-w-full"
+                                                    >
+                                                      {ponto}
+                                                    </Badge>
+                                                  )
+                                                )}
+                                              </div>
+
+                                              <h5 className="font-medium text-slate-800 dark:text-white mb-2 mt-4">
+                                                Pontos de Melhoria
+                                              </h5>
+                                              <div className="flex flex-wrap gap-1 max-w-full">
+                                                {report.pontosDeMelhoria?.map(
+                                                  (
+                                                    ponto: string,
+                                                    index: number
+                                                  ) => (
+                                                    <Badge
+                                                      key={index}
+                                                      className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs  break-words word-wrap text-wrap hyphens-auto max-w-full"
+                                                    >
+                                                      {ponto}
+                                                    </Badge>
+                                                  )
+                                                )}
+                                              </div>
+                                            </div>
                                           </div>
                                         </div>
+                                      ) : null;
+                                    })()}
 
-                                        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
-                                          <h5 className="font-medium text-slate-800 dark:text-white mb-2">
-                                            Pontos Fortes
-                                          </h5>
-                                          <div className="flex flex-wrap gap-1 max-w-full">
-                                            {report.pontosFortes?.map(
-                                              (
-                                                ponto: string,
-                                                index: number
-                                              ) => (
-                                                <Badge
-                                                  key={index}
-                                                  className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs break-words word-wrap text-wrap hyphens-auto max-w-full"
-                                                >
-                                                  {ponto}
-                                                </Badge>
-                                              )
-                                            )}
-                                          </div>
-
-                                          <h5 className="font-medium text-slate-800 dark:text-white mb-2 mt-4">
-                                            Pontos de Melhoria
-                                          </h5>
-                                          <div className="flex flex-wrap gap-1 max-w-full">
-                                            {report.pontosDeMelhoria?.map(
-                                              (
-                                                ponto: string,
-                                                index: number
-                                              ) => (
-                                                <Badge
-                                                  key={index}
-                                                  className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs  break-words word-wrap text-wrap hyphens-auto max-w-full"
-                                                >
-                                                  {ponto}
-                                                </Badge>
-                                              )
-                                            )}
-                                          </div>
+                                  {/* Respostas */}
+                                  {session.answers &&
+                                    session.answers.length > 0 && (
+                                      <div>
+                                        <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
+                                          <User className="w-4 h-4 mr-2" />
+                                          Respostas do Candidato
+                                        </h4>
+                                        <div className="space-y-4">
+                                          {session.answers.map(
+                                            (answer, index) => (
+                                              <div
+                                                key={index}
+                                                className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600"
+                                              >
+                                                <h5 className="font-medium text-slate-800 dark:text-white mb-2 break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                                  <strong>
+                                                    Pergunta {index + 1}:
+                                                  </strong>{" "}
+                                                  {answer.question}
+                                                </h5>
+                                                <p className="text-slate-600 dark:text-slate-300 text-sm break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                                  <strong>Resposta:</strong>{" "}
+                                                  {answer.response}
+                                                </p>
+                                              </div>
+                                            )
+                                          )}
                                         </div>
                                       </div>
-                                    </div>
-                                  ) : null;
-                                })()}
+                                    )}
 
-                              {/* Respostas */}
-                              {session.answers &&
-                                session.answers.length > 0 && (
-                                  <div>
-                                    <h4 className="font-semibold text-slate-800 dark:text-white mb-3 flex items-center">
-                                      <User className="w-4 h-4 mr-2" />
-                                      Respostas do Candidato
-                                    </h4>
-                                    <div className="space-y-4">
-                                      {session.answers.map((answer, index) => (
-                                        <div
-                                          key={index}
-                                          className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600"
-                                        >
-                                          <h5 className="font-medium text-slate-800 dark:text-white mb-2 break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                            <strong>
-                                              Pergunta {index + 1}:
-                                            </strong>{" "}
-                                            {answer.question}
-                                          </h5>
-                                          <p className="text-slate-600 dark:text-slate-300 text-sm break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                            <strong>Resposta:</strong>{" "}
-                                            {answer.response}
-                                          </p>
-                                        </div>
-                                      ))}
+                                  {/* Resumo */}
+                                  {session.summary && (
+                                    <div>
+                                      <h4 className="font-semibold text-slate-800 dark:text-white mb-2 flex items-center">
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        Resumo Para o Usuário
+                                      </h4>
+                                      <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+                                        <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
+                                          {session.summary}
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-
-                              {/* Resumo */}
-                              {session.summary && (
-                                <div>
-                                  <h4 className="font-semibold text-slate-800 dark:text-white mb-2 flex items-center">
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Resumo Para o Usuário
-                                  </h4>
-                                  <div className="bg-white dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
-                                    <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words word-wrap text-wrap hyphens-auto max-w-full">
-                                      {session.summary}
-                                    </p>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
 
-              {/* Paginação Desktop */}
-              <div className="hidden sm:block">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onNext={handleNextPage}
-                  onPrevious={handlePreviousPage}
-                />
-              </div>
+                  {/* Paginação Desktop */}
+                  <div className="hidden sm:block">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onNext={handleNextPage}
+                      onPrevious={handlePreviousPage}
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
