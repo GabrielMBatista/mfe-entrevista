@@ -204,17 +204,6 @@ export default function EnhancedQuestionsManager({
             </CardTitle>
 
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {questions.length > 0 && (
-                <Button
-                  onClick={handleSaveQuestions}
-                  disabled={isLoading}
-                  size="sm"
-                  className="hidden sm:inline-flex"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isLoading ? "Salvando..." : "Salvar"}
-                </Button>
-              )}
               <Button
                 onClick={() => openQuestionModal(null)}
                 size="sm"
@@ -497,18 +486,6 @@ export default function EnhancedQuestionsManager({
           )}
         </CardContent>
       </Card>
-
-      {questions.length > 0 && (
-        <Button
-          onClick={handleSaveQuestions}
-          disabled={isLoading}
-          className="sm:hidden fixed bottom-4 right-4 rounded-full h-12 w-12 p-0 shadow-lg z-50"
-          aria-label={isLoading ? "Salvando..." : "Salvar alterações"}
-          size="icon"
-        >
-          <Save className="h-5 w-5" />
-        </Button>
-      )}
     </div>
   );
 }
