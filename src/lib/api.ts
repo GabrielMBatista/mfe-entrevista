@@ -473,7 +473,7 @@ async function sendInvitationEmail(
     throw new Error("Variáveis de ambiente do EmailJS/API estão ausentes.");
   }
 
-  const invitationLink = `https://mfe-entrevista.vercel.app/invitations/${invitationId}`;
+  const invitationLink = `https://mfe-entrevista.vercel.app/interview/${invitationId}`;
 
   try {
     await emailjs.send(
