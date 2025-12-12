@@ -14,9 +14,9 @@
     "chart.js": "^4.5.0",
     "lucide-react": "^0.511.0",
     "next": "^14.2.29",
-    "react": "18.3.1",
+    "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
-    "react-dom": "18.3.1",
+    "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
     "react-table": "^7.8.0",
     "react-toastify": "^11.0.5",
@@ -85,9 +85,5 @@
     "vite": "^6.2.0",
     "webpack": "^5.88.2",
     "zod": "^3.25.76"
-  },
-  "resolutions": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
   }
 }
