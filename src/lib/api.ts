@@ -28,7 +28,7 @@ async function fetchInvitationById(invitationId: string): Promise<Invitation> {
 
 async function createSession(
   invitationId: string,
-  startTime: string
+  startTime: string,
 ): Promise<InterviewSession> {
   try {
     const response = await fetch(`${API_BASE_URL}/sessions/start`, {
@@ -77,21 +77,21 @@ async function saveAnswer(
   sessionId: string,
   questionId: string,
   transcript: string,
-  audioBlob: string
+  audioBlob: Blob,
 ): Promise<Answer> {
   try {
     const formData = new FormData();
     formData.append("sessionId", sessionId);
     formData.append("questionId", questionId);
     formData.append("transcript", transcript);
-    formData.append("audioBlob", audioBlob);
+    formData.append("audio", audioBlob, "recording.webm");
 
     const response = await fetch(
       `${API_BASE_URL}/sessions/${sessionId}/answer`,
       {
         method: "POST",
         body: formData,
-      }
+      },
     );
 
     if (!response.ok) {
@@ -138,11 +138,11 @@ async function getCategoriesByInterviewType(
   interviewTypeId: string,
   page: number = 1,
   limit: number = 10,
-  search: string = ""
+  search: string = "",
 ): Promise<{ data: Category[]; total: number; page: number; limit: number }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/categories?interviewTypeId=${interviewTypeId}&page=${page}&limit=${limit}&search=${search}`
+      `${API_BASE_URL}/categories?interviewTypeId=${interviewTypeId}&page=${page}&limit=${limit}&search=${search}`,
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar categorias por tipo de entrevista.");
@@ -158,11 +158,11 @@ async function getQuestionsByCategory(
   categoryId: string,
   page: number = 1,
   limit: number = 10,
-  search: string = ""
+  search: string = "",
 ): Promise<{ data: Question[]; total: number; page: number; limit: number }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/questions?categoryId=${categoryId}&page=${page}&limit=${limit}&search=${search}`
+      `${API_BASE_URL}/questions?categoryId=${categoryId}&page=${page}&limit=${limit}&search=${search}`,
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar perguntas por categoria.");
@@ -177,11 +177,11 @@ async function getQuestionsByCategory(
 async function fetchAllQuestions(
   page: number = 1,
   limit: number = 10,
-  search: string = ""
+  search: string = "",
 ): Promise<{ data: Question[]; total: number; page: number; limit: number }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/questions/all?page=${page}&limit=${limit}&search=${search}`
+      `${API_BASE_URL}/questions/all?page=${page}&limit=${limit}&search=${search}`,
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar todas as perguntas.");
@@ -196,7 +196,8 @@ async function fetchAllQuestions(
 async function sendInvitation(
   candidateName: string,
   candidateEmail: string,
-  categoryId: string
+  categoryId: string,
+  idempotencyKey?: string,
 ): Promise<{
   id: string;
   candidateName: string;
@@ -208,6 +209,7 @@ async function sendInvitation(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify({ candidateName, candidateEmail, categoryId }),
     });
@@ -224,7 +226,7 @@ async function sendInvitation(
 async function fetchSessionSummary(sessionId: string): Promise<SessionSummary> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/sessions/${sessionId}/summary`
+      `${API_BASE_URL}/sessions/${sessionId}/summary`,
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar resumo da sessão.");
@@ -239,7 +241,7 @@ async function fetchSessionSummary(sessionId: string): Promise<SessionSummary> {
 async function updateTranscript(
   sessionId: string,
   answerId: string,
-  transcript: string
+  transcript: string,
 ): Promise<Answer> {
   try {
     const response = await fetch(
@@ -250,7 +252,7 @@ async function updateTranscript(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ transcript }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -270,7 +272,7 @@ async function finalizeSession(sessionId: string): Promise<Response> {
       `${API_BASE_URL}/sessions/${sessionId}/evaluate`,
       {
         method: "POST",
-      }
+      },
     );
 
     return response;
@@ -286,7 +288,7 @@ async function completeSession(sessionId: string): Promise<void> {
       `${API_BASE_URL}/sessions/${sessionId}/complete`,
       {
         method: "POST",
-      }
+      },
     );
 
     if (!response.ok) {
@@ -328,7 +330,7 @@ async function fetchCompletedSessions({
     queryParams.append("sortOrder", sortOrder);
 
     const response = await fetch(
-      `${API_BASE_URL}/sessions/completed?${queryParams.toString()}`
+      `${API_BASE_URL}/sessions/completed?${queryParams.toString()}`,
     );
     if (!response.ok) {
       throw new Error("Erro ao buscar sessões concluídas.");
@@ -343,7 +345,7 @@ async function fetchCompletedSessions({
 
 async function createCategory(
   interviewTypeId: string,
-  name: string
+  name: string,
 ): Promise<Category> {
   try {
     const response = await fetch(`${API_BASE_URL}/categories`, {
@@ -413,7 +415,7 @@ async function updateQuestion(data: {
 
 async function addQuestionToCategory(
   categoryId: string,
-  questionId: string
+  questionId: string,
 ): Promise<void> {
   try {
     const response = await fetch(
@@ -422,7 +424,7 @@ async function addQuestionToCategory(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionIds: [questionId] }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -449,7 +451,7 @@ async function reEvaluateSession(sessionId: string): Promise<void> {
       `${API_BASE_URL}/sessions/${sessionId}/re-evaluate`,
       {
         method: "POST",
-      }
+      },
     );
     if (!response.ok) {
       throw new Error("Erro ao reenviar avaliação.");
@@ -463,7 +465,7 @@ async function reEvaluateSession(sessionId: string): Promise<void> {
 async function sendInvitationEmail(
   candidateEmail: string,
   candidateName: string,
-  invitationId: string
+  invitationId: string,
 ): Promise<void> {
   const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
   const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
@@ -484,7 +486,7 @@ async function sendInvitationEmail(
         candidateName: candidateName,
         invitationLink: invitationLink,
       },
-      publicKey
+      publicKey,
     );
   } catch (error) {
     console.error("Erro ao enviar email com EmailJS:", error);
@@ -494,7 +496,7 @@ async function sendInvitationEmail(
 
 async function saveQuestions(
   categoryId: string,
-  questions: Question[]
+  questions: Question[],
 ): Promise<void> {
   try {
     const questionIds = questions.map((q) => q.id);
@@ -510,7 +512,7 @@ async function saveQuestions(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ questionIds }),
-      }
+      },
     );
     if (!response.ok) {
       throw new Error("Erro ao salvar perguntas.");
@@ -523,14 +525,14 @@ async function saveQuestions(
 
 async function removeQuestionFromCategory(
   categoryId: string,
-  questionId: string
+  questionId: string,
 ): Promise<void> {
   try {
     const response = await fetch(
       `${API_BASE_URL}/categories/${categoryId}/questions/${questionId}`,
       {
         method: "DELETE",
-      }
+      },
     );
     if (!response.ok) {
       throw new Error("Erro ao remover vínculo da pergunta com a categoria.");

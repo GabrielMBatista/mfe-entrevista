@@ -4,10 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node vercel-prisma-build.js",
-    "dev": "NEXT_PRIVATE_LOCAL_WEBPACK=true next dev",
-    "build": "NEXT_PRIVATE_LOCAL_WEBPACK=true next build && node vercel-prisma-build.js",
-    "start": "NEXT_PRIVATE_LOCAL_WEBPACK=true next start"
+    "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=true next dev",
+    "build": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=true next build",
+    "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=true next start"
   },
   "dependencies": {
     "@types/chart.js": "^2.9.41",
@@ -24,7 +23,6 @@
   },
   "devDependencies": {
     "@emailjs/browser": "^4.4.1",
-    "@gabrielmbatista/ui-library-stencil": "0.0.27",
     "@hookform/resolvers": "^5.1.1",
     "@module-federation/nextjs-mf": "^8.8.30",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -64,6 +62,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cross-env": "^10.1.0",
     "date-fns": "^4.1.0",
     "emailjs-com": "^3.2.0",
     "embla-carousel-react": "^8.6.0",

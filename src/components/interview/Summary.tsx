@@ -46,7 +46,9 @@ export default function Summary({
                       Pergunta {index + 1}
                     </Badge>
                     <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">
-                      {answer.question.content}
+                      {typeof answer.question === "string"
+                        ? answer.question
+                        : answer.question.content}
                     </p>
                   </div>
                   {answer.audioBlob && (
@@ -54,7 +56,7 @@ export default function Summary({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const audio = new Audio(answer.audioBlob!);
+                        const audio = new Audio(answer.audioBlob as string);
                         audio.play();
                       }}
                       className="ml-4 border-slate-300 dark:border-slate-600"

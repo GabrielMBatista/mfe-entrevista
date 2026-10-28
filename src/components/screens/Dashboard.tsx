@@ -73,7 +73,10 @@ const mapSessionSummaryToSession = (summary: SessionSummary): Session => ({
   summary: summary.summary || "",
   fullReport: summary.fullReport || undefined, // Mapeia o relatório completo, se disponível
   answers: (summary.answers || []).map((answer) => ({
-    question: answer.question || "N/A", // Ajusta para acessar diretamente a pergunta
+    question:
+      typeof answer.question === "string"
+        ? answer.question || "N/A"
+        : answer.question?.content || "N/A",
     response: answer.response || "N/A", // Ajusta para acessar diretamente a resposta
   })),
 });

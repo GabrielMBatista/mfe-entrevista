@@ -46,7 +46,6 @@ const nextConfig = {
 
     return config;
   },
-  transpilePackages: ['@meta/react-components'],
   output: 'standalone',
   async redirects() {
     return [
