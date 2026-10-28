@@ -45,7 +45,7 @@ export default function Interview() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(
-    null
+    null,
   );
 
   // Estados de gravação
@@ -61,13 +61,26 @@ export default function Interview() {
   const [showSummary, setShowSummary] = useState(false);
   const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
   const [editTranscript, setEditTranscript] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
   console.log("invitationId", invitationId);
+
+  const replaceAudioUrl = (nextUrl: string | null) => {
+    if (audioUrlRef.current && audioUrlRef.current !== nextUrl) {
+      URL.revokeObjectURL(audioUrlRef.current);
+    }
+    audioUrlRef.current = nextUrl;
+    setAudioUrl(nextUrl);
+  };
+
   // Inicialização
   useEffect(() => {
     if (!invitationId) {
@@ -77,18 +90,21 @@ export default function Interview() {
 
     const initializeInterview = async () => {
       try {
+        setError(null);
+        setIsLoading(true);
         const invitation = await fetchInvitationById(invitationId);
         setQuestions(invitation.questions);
 
         const session = await createSession(
           invitationId,
-          new Date().toISOString()
+          new Date().toISOString(),
         );
         setSessionId(session.id);
 
         setIsLoading(false);
       } catch (error) {
         console.error("Erro ao inicializar entrevista:", error);
+        setError("Não foi possível carregar a entrevista.");
         setIsLoading(false);
       }
     };
@@ -101,9 +117,38 @@ export default function Interview() {
   }
 
   // Configuração do áudio
+  const cleanupAudio = () => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => undefined);
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    mediaRecorderRef.current = null;
+  };
+
+  useEffect(
+    () => () => {
+      cleanupAudio();
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+    },
+    [],
+  );
+
   const setupAudio = async () => {
     try {
+      cleanupAudio();
+      setAudioError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
 
       // Configurar MediaRecorder
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -116,7 +161,7 @@ export default function Interview() {
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/wav" });
         setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
+        replaceAudioUrl(URL.createObjectURL(blob));
       };
 
       // Configurar análise de áudio para nível
@@ -128,6 +173,8 @@ export default function Interview() {
       return true;
     } catch (error) {
       console.error("Erro ao configurar áudio:", error);
+      cleanupAudio();
+      setAudioError("Não foi possível acessar o microfone. Tente novamente.");
       return false;
     }
   };
@@ -158,7 +205,7 @@ export default function Interview() {
 
     setIsRecording(true);
     setAudioBlob(null);
-    setAudioUrl(null);
+    replaceAudioUrl(null);
     setTranscript("");
 
     mediaRecorderRef.current.start();
@@ -180,20 +227,21 @@ export default function Interview() {
 
   // Avançar para próxima pergunta
   const handleNextQuestion = async () => {
-    if (!sessionId || !audioBlob) return;
+    if (!sessionId || !audioBlob || isTranscribing) return;
 
     try {
+      setIsTranscribing(true);
+      setAudioError(null);
       // Transcrever áudio
       const transcriptText = await transcribeAudio(audioBlob);
       setTranscript(transcriptText);
 
       // Salvar resposta
-      const audioBlobString = audioBlob ? await audioBlob.text() : "";
       const answer = await saveAnswer(
         sessionId,
         questions[currentQuestionIndex].id,
         transcriptText,
-        audioBlobString
+        audioBlob,
       );
 
       setAnswers((prev) => [
@@ -209,15 +257,21 @@ export default function Interview() {
       if (currentQuestionIndex === questions.length - 1) {
         const summary = await fetchSessionSummary(sessionId);
         setSessionSummary(summary);
+        replaceAudioUrl(null);
         setShowSummary(true);
       } else {
         setCurrentQuestionIndex((prev) => prev + 1);
         setAudioBlob(null);
-        setAudioUrl(null);
+        replaceAudioUrl(null);
         setTranscript("");
       }
     } catch (error) {
       console.error("Erro ao processar resposta:", error);
+      setAudioError(
+        "Não foi possível processar ou salvar a resposta. Tente novamente.",
+      );
+    } finally {
+      setIsTranscribing(false);
     }
   };
 
@@ -232,47 +286,74 @@ export default function Interview() {
         prev.map((answer) =>
           answer.id === answerId
             ? { ...answer, transcript: editTranscript }
-            : answer
-        )
+            : answer,
+        ),
       );
 
       setEditingAnswerId(null);
       setEditTranscript("");
     } catch (error) {
       console.error("Erro ao atualizar transcrição:", error);
+      toast.error("Não foi possível salvar a transcrição. Tente novamente.");
     }
   };
 
   // Finalizar sessão
-const handleFinalizeSession = async () => {
-  if (!sessionId) return;
+  const handleFinalizeSession = async () => {
+    if (!sessionId) return;
 
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    const response = await finalizeSession(sessionId);
+      const response = await finalizeSession(sessionId);
 
-    if (response.ok) {
-      toast.success("Entrevista finalizada com sucesso! Redirecionando...");
+      if (response.ok) {
+        const deadline = Date.now() + 60_000;
+        let evaluated = false;
+        while (Date.now() < deadline) {
+          const summary = await fetchSessionSummary(sessionId);
+          if (summary.evaluatedAt) {
+            evaluated = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        if (evaluated) {
+          toast.success("Avaliação concluída! Redirecionando...");
+          setTimeout(() => router.push("/thank-you"), 1000);
+        } else {
+          toast.error(
+            "A avaliação ainda está em processamento. Tente consultar novamente mais tarde.",
+          );
+        }
+      } else {
+        const errorText = await response.text();
+        console.error("Erro da API:", errorText);
 
-      setTimeout(() => {
-        router.push("/thank-you");
-      }, 2000);
-    } else {
-      const errorText = await response.text();
-      console.error("Erro da API:", errorText);
-
-      toast.error("Erro ao finalizar a entrevista. Por favor, tente novamente.");
+        toast.error(
+          "Erro ao finalizar a entrevista. Por favor, tente novamente.",
+        );
+      }
+    } catch (error) {
+      console.error("Erro inesperado:", error);
+      toast.error("Ocorreu um erro inesperado. Tente reenviar.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("Erro inesperado:", error);
-    toast.error("Ocorreu um erro inesperado. Tente reenviar.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-
+  if (error)
+    return (
+      <div className="p-8 text-center">
+        <p>{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 underline"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
   if (isLoading) {
     return <LoadingScreen fontFamily={fontFamily} />;
   }
@@ -326,6 +407,11 @@ const handleFinalizeSession = async () => {
             setAudioUrl={setAudioUrl}
             setTranscript={setTranscript}
           />
+          {audioError && (
+            <p className="mt-4 text-center text-red-600" role="alert">
+              {audioError}
+            </p>
+          )}
         </main>
       </div>
       <ToastContainer /> {/* Componente para exibir os toasts */}

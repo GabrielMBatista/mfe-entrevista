@@ -40,8 +40,9 @@ export type SessionSummary = {
   interviewType?: string;
   summary?: string;
   fullReport?: string;
+  evaluatedAt?: string;
   answers: Array<{
-    question: string;
+    question: string | { content: string };
     response?: string; // Tornar opcional para compatibilidade
     id?: string; // Adicionar propriedades opcionais
     transcript?: string;
@@ -103,7 +104,7 @@ export interface QuestionsManagerProps {
   handleUpdateQuestion: (
     questionId: string,
     updatedContent: string,
-    updatedTechnologies: string
+    updatedTechnologies: string,
   ) => void;
   handleRemoveQuestion: (questionId: string) => void;
   handleSaveQuestions: () => void;

@@ -22,7 +22,10 @@ export const mapSessionSummaryToSession = (
   summary: summary.summary || "",
   fullReport: summary.fullReport || undefined,
   answers: (summary.answers || []).map((answer) => ({
-    question: answer.question || "N/A",
+    question:
+      typeof answer.question === "string"
+        ? answer.question || "N/A"
+        : answer.question?.content || "N/A",
     response: answer.response || "N/A",
   })),
 });

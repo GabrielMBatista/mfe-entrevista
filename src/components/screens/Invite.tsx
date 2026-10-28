@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useGoogleFont } from "@/utils/fonts";
 import {
   Send,
@@ -62,6 +62,7 @@ export default function Invite() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [loadingTypes, setLoadingTypes] = useState<boolean>(true);
   const [loadingCategories, setLoadingCategories] = useState<boolean>(false);
+  const invitationIdempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchInterviewTypes = async () => {
@@ -86,7 +87,7 @@ export default function Invite() {
         try {
           setLoadingCategories(true);
           const response = await getCategoriesByInterviewType(
-            selectedInterviewType
+            selectedInterviewType,
           );
           setCategories(response.data);
           setSelectedCategory("");
@@ -133,10 +134,14 @@ export default function Invite() {
     setIsLoading(true);
 
     try {
+      if (!invitationIdempotencyKeyRef.current) {
+        invitationIdempotencyKeyRef.current = crypto.randomUUID();
+      }
       const invitation = await sendInvitation(
         candidateName,
         candidateEmail,
-        selectedCategory
+        selectedCategory,
+        invitationIdempotencyKeyRef.current,
       );
 
       await sendInvitationEmail(candidateEmail, candidateName, invitation.id);
@@ -151,6 +156,7 @@ export default function Invite() {
       setCandidateEmail("");
       setSelectedCategory("");
       setSelectedInterviewType("");
+      invitationIdempotencyKeyRef.current = null;
     } catch (error) {
       setFeedback({
         type: "error",
